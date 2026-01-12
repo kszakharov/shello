@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Container
 from pathlib import Path
 from typing import Any, TextIO, cast
 
@@ -35,6 +36,9 @@ DEVNULL = _DevNullType()
 STDOUT = _StdoutType()
 STDERR = _StderrType()
 
+# Acceptable exit codes - range(256) represents any valid exit code
+ANY_EXITCODE = range(256)
+
 # Type aliases for better readability
 InputStream = str | bytes | TextIO | None | _DevNullType | int
 OutputStream = (
@@ -55,6 +59,7 @@ class Process:
         cwd: str | Path | None = None,
         env: dict[str, str] | None = None,
         check: bool = True,
+        ok_exitcodes: Container[int] | int = 0,
         text: bool = True,
         **kwargs: Any,
     ) -> None:
@@ -70,6 +75,7 @@ class Process:
             cwd: Working directory
             env: Environment variables
             check: Whether to raise exception on non-zero exit
+            ok_exitcodes: Acceptable exit codes (default: 0, use ANY_EXITCODE for any) - can be int or container
             text: Whether to treat I/O as text
             **kwargs: Additional arguments passed to subprocess
         """
@@ -81,6 +87,7 @@ class Process:
         self.cwd = cwd
         self.env = env
         self.check = check
+        self.ok_exitcodes = (ok_exitcodes,) if isinstance(ok_exitcodes, int) else ok_exitcodes
         self.text = text
         self.kwargs = kwargs
 
@@ -157,7 +164,7 @@ class Process:
             self._executed = True
 
             # Check exit code if requested
-            if self.check and self._process.returncode != 0:
+            if self.check and self._process.returncode not in self.ok_exitcodes:
                 raise ProcessError(
                     command=[self.program] + self.args,
                     exit_code=self._process.returncode,

@@ -37,6 +37,10 @@ result = shell.env("CUSTOM_VAR=value").execute()
 # I/O redirection
 result = shell.echo("error", stderr=STDOUT).execute()  # stderr to stdout
 result = shell.echo("data", stdout=DEVNULL).execute()  # discard output
+
+# Acceptable exit codes
+result = shell.command_that_might_fail(ok_exitcodes=(0, 1)).execute()  # accept 0 or 1
+result = shell.any_command(ok_exitcodes=ANY_EXITCODE).execute()        # accept any exit code
 ```
 
 ## Installation
@@ -73,7 +77,7 @@ Represents a process that can be executed.
 ```python
 Process(program, *args,
        stdin=DEVNULL, stdout=None, stderr=None,
-       cwd=None, env=None, check=True, text=True, **kwargs)
+       cwd=None, env=None, check=True, ok_exitcodes=0, text=True, **kwargs)
 ```
 
 **Parameters:**
@@ -84,7 +88,8 @@ Process(program, *args,
 - `stderr`: Error output destination (same options as stdout)
 - `cwd`: Working directory
 - `env`: Environment variables dict
-- `check`: Raise exception on non-zero exit (default: `True`)
+- `check`: Raise exception on unacceptable exit (default: `True`)
+- `ok_exitcodes`: Acceptable exit codes (default: `0`, use `ANY_EXITCODE` for any) - can be int or container
 - `text`: Text mode for I/O (default: `True`)
 - `**kwargs`: Additional subprocess arguments
 
@@ -110,6 +115,7 @@ result = (shell.cat("file.txt") | shell.grep("pattern") | shell.wc("-l")).execut
 
 ### Constants
 
+- `ANY_EXITCODE`: Accepts any valid exit code (0-255)
 - `DEVNULL`: `/dev/null` redirection
 - `STDOUT`: stdout redirection marker
 - `STDERR`: stderr redirection marker
