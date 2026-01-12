@@ -3,7 +3,37 @@
 Demo script showing shello library capabilities.
 """
 
-from shello import STDOUT, ProcessError, shell
+from shello import STDOUT, Process, ProcessError, shell
+
+
+def run_example(process: Process) -> None:
+    """Run a shello Process and print its details and results."""
+
+    if process.env:
+        env = "\n\t".join(f"{k}={v}" for k, v in process.env.items())
+        print(f"   Environment:\n\t{env}")
+    print(f"   Command: {process}")
+
+    try:
+        process.execute()
+    except ProcessError:
+        pass
+
+    std_output = process.stdout_data().strip()
+    if "\n" in std_output:
+        std_output = "\n\t".join(std_output.splitlines())
+        print(f"   Output:\n\t{std_output}")
+    else:
+        print(f"   Output: {std_output}")
+
+    if process.stderr_data():
+        stderr_data = process.stderr_data().strip()
+        if "\n" in stderr_data:
+            stderr_data = "\n\t".join(stderr_data.splitlines())
+            print(f"   Error Output:\n\t{stderr_data}")
+        else:
+            print(f"   Error Output: {stderr_data}")
+    print(f"   Exit code: {process.returncode()}")
 
 
 def main():
@@ -11,45 +41,37 @@ def main():
 
     # Basic command execution
     print("1. Basic command execution:")
-    result = shell.echo("Hello, World!").execute()
-    print(f"   Output: {result.stdout_data().strip()}")
-    print(f"   Exit code: {result.returncode()}")
+    run_example(shell.echo("Hello, World!"))
     print()
 
     # Command with arguments
     print("2. Command with arguments:")
-    result = shell.wc("-c", stdin="Hello World").execute()
-    print(f"   Character count: {result.stdout_data().strip()}")
+    run_example(shell.wc("-c", stdin="Hello World"))
     print()
 
     # Pipeline support
     print("3. Pipeline support:")
-    result = (
-        shell.echo("one two three") | shell.wc("-w")
-    ).execute()
-    print(f"   Word count: {result.stdout_data().strip()}")
+    run_example(shell.echo("one two three") | shell.wc("-w"))
     print()
 
     # Error handling
     print("4. Error handling:")
-    try:
-        shell.false().execute()
-    except ProcessError as e:
-        print(f"   Caught error: {e.exit_code}")
+    run_example(shell.false())
     print()
 
     # Environment variables
     print("5. Environment variables:")
-    result = shell.sh(
-        "-c", "echo $CUSTOM_VAR", env={"CUSTOM_VAR": "custom_value"}
-    ).execute()
-    print(f"   Custom env var: {result.stdout_data().strip()}")
+    run_example(shell.sh("-c", "echo $CUSTOM_VAR", env={"CUSTOM_VAR": "custom_value"}))
+    print()
+
+    # Std error capture
+    print("6. Std error capture:")
+    run_example(shell.ls("missing_file"))
     print()
 
     # I/O redirection
-    print("6. I/O redirection:")
-    result = shell.echo("error message", stderr=STDOUT).execute()
-    print(f"   Stderr to stdout: {result.stdout_data().strip()}")
+    print("7. I/O redirection:")
+    run_example(shell.ls("missing_file", stderr=STDOUT))
     print()
 
     print("=== Demo Complete ===")
