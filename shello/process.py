@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 from collections.abc import Container
 from pathlib import Path
-from typing import Any, TextIO, cast
+from typing import Any, TextIO
 
 from .exceptions import InvalidArgument, InvalidOperation, ProcessError
 
@@ -53,9 +53,9 @@ class Process:
         self,
         program: str,
         *args: str,
-        stdin: InputStream = DEVNULL,
-        stdout: OutputStream = None,
-        stderr: OutputStream = None,
+        stdin: InputStream = DEVNULL,  # type: ignore[arg-type]
+        stdout: OutputStream = None,  # type: ignore[arg-type]
+        stderr: OutputStream = None,  # type: ignore[arg-type]
         cwd: str | Path | None = None,
         env: dict[str, str] | None = None,
         check: bool = True,
@@ -132,11 +132,11 @@ class Process:
             self._pipeline_source.execute()
 
         try:
-            self._process = subprocess.Popen(  # type: ignore[arg-type]
+            self._process = subprocess.Popen(
                 [self.program] + self.args,
-                stdin=cast(Any, self._get_stdin_handle()),
-                stdout=cast(Any, self._get_stdout_handle()),
-                stderr=cast(Any, self._get_stderr_handle()),
+                stdin=self._get_stdin_handle(),
+                stdout=self._get_stdout_handle(),
+                stderr=self._get_stderr_handle(),
                 cwd=self.cwd,
                 env=self.env,
                 text=self.text,
@@ -281,7 +281,7 @@ class Process:
         """Detailed representation."""
         return f"Process({self.program!r}, {self.args!r})"
 
-    def _get_stdin_handle(self):
+    def _get_stdin_handle(self) -> int | TextIO | None:
         """Get stdin handle for subprocess."""
         if self.stdin is DEVNULL:
             return subprocess.DEVNULL
@@ -294,7 +294,7 @@ class Process:
         else:
             return subprocess.PIPE
 
-    def _get_stdout_handle(self):
+    def _get_stdout_handle(self) -> int | TextIO | None:
         """Get stdout handle for subprocess."""
         if self.stdout is DEVNULL:
             return subprocess.DEVNULL
@@ -307,7 +307,7 @@ class Process:
         else:
             return subprocess.PIPE
 
-    def _get_stderr_handle(self):
+    def _get_stderr_handle(self) -> int | TextIO | None:
         """Get stderr handle for subprocess."""
         if self.stderr is DEVNULL:
             return subprocess.DEVNULL
