@@ -19,21 +19,21 @@ def run_example(process: Process) -> None:
     except ProcessError:
         pass
 
-    std_output = process.stdout_data().strip()
+    std_output = process.stdout_data.strip()
     if "\n" in std_output:
         std_output = "\n\t".join(std_output.splitlines())
         print(f"   Output:\n\t{std_output}")
     else:
         print(f"   Output: {std_output}")
 
-    if process.stderr_data():
-        stderr_data = process.stderr_data().strip()
+    if process.stderr_data:
+        stderr_data = process.stderr_data.strip()
         if "\n" in stderr_data:
             stderr_data = "\n\t".join(stderr_data.splitlines())
             print(f"   Error Output:\n\t{stderr_data}")
         else:
             print(f"   Error Output: {stderr_data}")
-    print(f"   Exit code: {process.returncode()}")
+    print(f"   Exit code: {process.returncode}")
 
 
 def main():
