@@ -23,7 +23,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
     "--cov=shello",
-    "--cov-report=term-missing",
+    "--cov-report=term:skip-covered",
     "--cov-report=html",
 ]
 
