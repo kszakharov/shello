@@ -18,16 +18,16 @@ class TestPipeline:
         result = pipeline.execute()
 
         # "hello" + newline = 6 characters
-        assert result.returncode() == 0
-        assert "6" in result.stdout_data()
+        assert result.returncode == 0
+        assert "6" in result.stdout_data
 
     def test_pipeline_with_shell(self):
         """Test pipeline using shell factory."""
         pipeline = shell.echo("hello world") | shell.wc("-w")
         result = pipeline.execute()
 
-        assert result.returncode() == 0
-        assert "2" in result.stdout_data()  # "hello world" has 2 words
+        assert result.returncode == 0
+        assert "2" in result.stdout_data  # "hello world" has 2 words
 
     def test_pipeline_stderr_capture(self):
         """Test pipeline stderr capture."""
@@ -38,11 +38,11 @@ class TestPipeline:
         pipeline = first_cmd | second_cmd
         result = pipeline.execute()
 
-        assert result.returncode() == 0
+        assert result.returncode == 0
         # wc -c counts characters, "output\n" is 7 characters
-        assert "7" in result.stdout_data()
+        assert "7" in result.stdout_data
         # Pipeline stderr should contain stderr from first command
-        assert "error" in result.stderr_data()
+        assert "error" in result.stderr_data
 
     def test_pipeline_chaining(self):
         """Test chaining multiple processes."""
@@ -51,8 +51,8 @@ class TestPipeline:
         )
         result = pipeline.execute()
 
-        assert result.returncode() == 0
-        assert "3" in result.stdout_data()  # 3 lines
+        assert result.returncode == 0
+        assert "3" in result.stdout_data  # 3 lines
 
     def test_pipeline_with_stdin(self):
         """Test pipeline with stdin input to first process."""
@@ -62,9 +62,9 @@ class TestPipeline:
         pipeline = first_cmd | second_cmd
         result = pipeline.execute()
 
-        assert result.returncode() == 0
+        assert result.returncode == 0
         # Should remove spaces from the character count
-        assert "11" in result.stdout_data() or "9" in result.stdout_data()
+        assert "11" in result.stdout_data or "9" in result.stdout_data
 
     def test_pipeline_already_configured_stdout(self):
         """Test that pipeline fails if first process stdout already configured."""
@@ -98,8 +98,8 @@ class TestPipeline:
         pipeline = first | second
         result = pipeline.execute()
 
-        assert result.returncode() == 0
-        assert "first" in result.stdout_data()
+        assert result.returncode == 0
+        assert "first" in result.stdout_data
 
     def test_pipeline_return_value(self):
         """Test that pipeline returns the last process."""
@@ -116,9 +116,9 @@ class TestPipeline:
         pipeline = Process("ls", "-1") | Process("grep", r"\.py$") | Process("wc", "-l")
         result = pipeline.execute()
 
-        assert result.returncode() == 0
+        assert result.returncode == 0
         # Should return a number (even if 0)
-        assert result.stdout_data().strip().isdigit()
+        assert result.stdout_data.strip().isdigit()
 
     def test_pipeline_with_failing_command(self):
         """Test pipeline where one command fails."""
@@ -139,4 +139,4 @@ class TestPipeline:
         pipeline = first | second
         result = pipeline.execute()
 
-        assert result.returncode() == 1  # false exits with 1
+        assert result.returncode == 1  # false exits with 1

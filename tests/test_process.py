@@ -14,17 +14,17 @@ class TestProcess:
         process = Process("echo", "hello")
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert result.stdout_data().strip() == "hello"
-        assert result.stderr_data() == ""
+        assert result.returncode == 0
+        assert result.stdout_data.strip() == "hello"
+        assert result.stderr_data == ""
 
     def test_command_with_args(self):
         """Test command with multiple arguments."""
         process = Process("echo", "hello", "world")
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert result.stdout_data().strip() == "hello world"
+        assert result.returncode == 0
+        assert result.stdout_data.strip() == "hello world"
 
     def test_command_not_found(self):
         """Test handling of non-existent command."""
@@ -51,9 +51,9 @@ class TestProcess:
         process = Process("false", check=False)
         result = process.execute()
 
-        assert result.returncode() == 1
-        assert result.stdout_data() == ""
-        assert result.stderr_data() == ""
+        assert result.returncode == 1
+        assert result.stdout_data == ""
+        assert result.stderr_data == ""
 
     def test_stderr_capture(self):
         """Test stderr capture."""
@@ -61,43 +61,43 @@ class TestProcess:
         process = Process("sh", "-c", "echo 'error message' >&2")
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert result.stdout_data() == ""
-        assert result.stderr_data().strip() == "error message"
+        assert result.returncode == 0
+        assert result.stdout_data == ""
+        assert result.stderr_data.strip() == "error message"
 
     def test_stdin_string(self):
         """Test stdin with string input."""
         process = Process("wc", "-c", stdin="hello world")
         result = process.execute()
 
-        assert result.returncode() == 0
+        assert result.returncode == 0
         # "hello world" has 11 characters
-        assert "11" in result.stdout_data()
+        assert "11" in result.stdout_data
 
     def test_devnull_stdin(self):
         """Test DEVNULL stdin (default)."""
         process = Process("wc", "-c", stdin=DEVNULL)
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert "0" in result.stdout_data()
+        assert result.returncode == 0
+        assert "0" in result.stdout_data
 
     def test_devnull_stdout(self):
         """Test DEVNULL stdout."""
         process = Process("echo", "hello", stdout=DEVNULL)
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert result.stdout_data() == ""
+        assert result.returncode == 0
+        assert result.stdout_data == ""
 
     def test_stderr_to_stdout(self):
         """Test redirecting stderr to stdout."""
         process = Process("sh", "-c", "echo 'error' >&2", stderr=STDOUT)
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert "error" in result.stdout_data()
-        assert result.stderr_data() == ""
+        assert result.returncode == 0
+        assert "error" in result.stdout_data
+        assert result.stderr_data == ""
 
     def test_process_attributes(self):
         """Test process attributes and methods."""
@@ -105,14 +105,14 @@ class TestProcess:
 
         # Before execution
         assert not process._executed
-        assert process.pid() is None
+        assert process.pid is None
 
         process.execute()
 
         # After execution
         assert process._executed
-        assert process.returncode() == 0
-        assert process.pid() is not None
+        assert process.returncode == 0
+        assert process.pid is not None
         assert str(process) == "echo test"
         assert "Process" in repr(process)
 
@@ -144,7 +144,7 @@ class TestProcess:
         process = Process("echo", "test")
 
         with pytest.raises(InvalidOperation, match="not executed"):
-            process.stdout_data()
+            process.stdout_data
 
     def test_invalid_stdin_type(self):
         """Test invalid stdin type raises error."""
@@ -162,16 +162,16 @@ class TestProcess:
         process = Process("ls", cwd=tmp_path)
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert "test.txt" in result.stdout_data()
+        assert result.returncode == 0
+        assert "test.txt" in result.stdout_data
 
     def test_environment_variables(self):
         """Test setting environment variables."""
         process = Process("sh", "-c", "echo $TEST_VAR", env={"TEST_VAR": "test_value"})
         result = process.execute()
 
-        assert result.returncode() == 0
-        assert result.stdout_data().strip() == "test_value"
+        assert result.returncode == 0
+        assert result.stdout_data.strip() == "test_value"
 
 
 def test_binary_mode():
@@ -179,9 +179,9 @@ def test_binary_mode():
     process = Process("echo", "hello", text=False)
     result = process.execute()
 
-    assert result.returncode() == 0
+    assert result.returncode == 0
     # In binary mode, check that hello appears in output
-    output = result.stdout_data()
+    output = result.stdout_data
     # In binary mode, stdout_data may be bytes or str depending on implementation
     if type(output) is bytes:
         assert b"hello" in output

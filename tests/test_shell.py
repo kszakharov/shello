@@ -1,6 +1,5 @@
 """Test Shell factory class."""
 
-
 from shello import Process, Shell
 
 
