@@ -74,6 +74,11 @@ def main():
     run_example(shell.ls("missing_file", stderr=STDOUT))
     print()
 
+    # I/O redirection, no reader
+    print("8. Long command:")
+    run_example(shell.yes() | shell.echo("Message"))
+    print()
+
     print("=== Demo Complete ===")
 
 

@@ -14,7 +14,7 @@ class TestShell:
         assert isinstance(process, Process)
         assert process.program == "echo"
         assert process.args == ["hello"]
-        assert process.stdin is not None  # Should be DEVNULL
+        assert process.stdin is None  # Default is None
 
     def test_shell_getattr_method(self):
         """Test Shell __getattr__ method."""

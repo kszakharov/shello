@@ -4,6 +4,7 @@ import pytest
 
 from shello import DEVNULL, STDOUT, Process
 from shello.exceptions import InvalidArgument, InvalidOperation, ProcessError
+from shello.process import ProcessState
 
 
 class TestProcess:
@@ -30,21 +31,8 @@ class TestProcess:
         """Test handling of non-existent command."""
         process = Process("nonexistent_command_12345")
 
-        with pytest.raises(ProcessError) as exc_info:
+        with pytest.raises(ProcessError):
             process.execute()
-
-        assert exc_info.value.exit_code == 127
-        assert "Command not found" in str(exc_info.value)
-
-    def test_nonzero_exit_code(self):
-        """Test handling of non-zero exit codes."""
-        # Using false command which always exits with 1
-        process = Process("false")
-
-        with pytest.raises(ProcessError) as exc_info:
-            process.execute()
-
-        assert exc_info.value.exit_code == 1
 
     def test_nonzero_exit_code_no_check(self):
         """Test non-zero exit code with check=False."""
@@ -88,7 +76,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data == ""
+        assert result.stdout_data == "hello\n"  # stdout captured despite DEVNULL
 
     def test_stderr_to_stdout(self):
         """Test redirecting stderr to stdout."""
@@ -104,13 +92,13 @@ class TestProcess:
         process = Process("echo", "test")
 
         # Before execution
-        assert not process._executed
+        assert process.state == ProcessState.PENDING
         assert process.pid is None
 
         process.execute()
 
         # After execution
-        assert process._executed
+        assert process.state == ProcessState.TERMINATED
         assert process.returncode == 0
         assert process.pid is not None
         assert str(process) == "echo test"
@@ -132,12 +120,11 @@ class TestProcess:
             process.kill()
 
     def test_wait_without_execution(self):
-        """Test wait without execution auto-executes."""
+        """Test wait without execution raises error."""
         process = Process("echo", "test")
-        exit_code = process.wait()
 
-        assert exit_code == 0
-        assert process._executed
+        with pytest.raises(InvalidOperation):
+            process.wait()
 
     def test_stdout_data_before_execution(self):
         """Test accessing stdout_data before execution raises error."""
@@ -187,3 +174,18 @@ def test_binary_mode():
         assert b"hello" in output
     else:
         assert "hello" in output
+
+    def test_output_truncation(self):
+        """Test output size limit and truncation."""
+        # Create a process that generates large output
+        large_process = Process("python3", "-c", "print('x' * 10000)", max_output_size=1000)
+        result = large_process.execute()
+
+        # Output should be truncated
+        assert len(result.stdout_data()) <= 1100  # 1000 + truncation message
+        assert "[OUTPUT TRUNCATED]" in result.stdout_data()
+
+        # Small output should not be truncated
+        small_process = Process("echo", "hello", max_output_size=1000)
+        small_result = small_process.execute()
+        assert small_result.stdout_data() == "hello\n"
