@@ -46,9 +46,7 @@ class TestPipeline:
 
     def test_pipeline_chaining(self):
         """Test chaining multiple processes."""
-        pipeline = (
-            Process("echo", "a b c") | Process("tr", " ", "\n") | Process("wc", "-l")
-        )
+        pipeline = Process("echo", "a b c") | Process("tr", " ", "\n") | Process("wc", "-l")
         result = pipeline.execute()
 
         assert result.returncode == 0

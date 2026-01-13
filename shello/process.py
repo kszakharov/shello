@@ -41,9 +41,7 @@ ANY_EXITCODE = range(256)
 
 # Type aliases for better readability
 InputStream = str | bytes | TextIO | None | _DevNullType | int
-OutputStream = (
-    str | Path | TextIO | None | _DevNullType | _StdoutType | _StderrType | int
-)
+OutputStream = str | Path | TextIO | None | _DevNullType | _StdoutType | _StderrType | int
 
 
 class Process:
@@ -146,20 +144,14 @@ class Process:
             # Handle pipeline communication
             if self._pipeline_source and self._pipeline_source._process:
                 # For pipeline, communicate between processes
-                source_stdout, source_stderr = (
-                    self._pipeline_source._process.communicate()
-                )
-                self._stdout_data, self._stderr_data = self._process.communicate(
-                    source_stdout
-                )
+                source_stdout, source_stderr = self._pipeline_source._process.communicate()
+                self._stdout_data, self._stderr_data = self._process.communicate(source_stdout)
                 # Store stderr from source process for access via stderr_data()
                 self._source_stderr = source_stderr
             else:
                 # Normal execution with stdin
                 stdin_input = self._prepare_stdin_input()
-                self._stdout_data, self._stderr_data = self._process.communicate(
-                    stdin_input
-                )
+                self._stdout_data, self._stderr_data = self._process.communicate(stdin_input)
 
             self._executed = True
 
@@ -185,9 +177,7 @@ class Process:
                 message=f"Subprocess error: {e}",
             ) from e
         except InvalidArgument as e:
-            raise ProcessError(
-                command=[self.program] + self.args, exit_code=-1, message=str(e)
-            ) from e
+            raise ProcessError(command=[self.program] + self.args, exit_code=-1, message=str(e)) from e
 
         return self
 
@@ -334,11 +324,7 @@ class Process:
             _DevNullType,
         )
 
-        if not (
-            isinstance(self.stdin, valid_types)
-            or is_valid_int
-            or hasattr(self.stdin, "read")
-        ):
+        if not (isinstance(self.stdin, valid_types) or is_valid_int or hasattr(self.stdin, "read")):
             raise InvalidArgument(f"Invalid stdin type: {type(self.stdin)}")
 
     def _prepare_stdin_input(self) -> str | None:
