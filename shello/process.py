@@ -11,9 +11,10 @@ import threading
 from collections.abc import Container
 from enum import Enum
 from pathlib import Path
-from typing import Any, BinaryIO, TextIO
+from typing import Any, BinaryIO, Self, TextIO
 
 from .exceptions import InvalidArgument, InvalidOperation, ProcessError, TimeoutError
+from .pipeline import Pipeline
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,7 @@ class Process:
         ok_exitcodes: Container[int] | int = 0,
         text: bool = True,
         timeout: float | None = None,
+        wait: bool = True,
         **kwargs: Any,
     ) -> None:
         """
@@ -125,11 +127,8 @@ class Process:
         self.ok_exitcodes = (ok_exitcodes,) if isinstance(ok_exitcodes, int) else ok_exitcodes
         self.text = text
         self.timeout = timeout
+        self._wait = wait
         self.kwargs = kwargs
-
-        # pipeline support
-        self.previous_process: Process | None = None
-        self.next_process: Process | None = None
 
         # Runtime state
         self._process: subprocess.Popen[str] | None = None
@@ -140,27 +139,13 @@ class Process:
         # Resource management
         self._opened_handles: list[TextIO] = []
 
-    def __or__(self, other: Process) -> Process:
+    def __or__(self, other: Process) -> Pipeline:
         """Support shell-style pipeline operator: cmd1 | cmd2."""
+
         if not isinstance(other, Process):
             return NotImplemented
 
-        # Configure stdout of this process to be stdin of the other
-        if self.stdout is not None and self.stdout is not STDOUT:
-            raise InvalidOperation("Process stdout already configured")
-
-        if other.stdin is not None and other.stdin is not DEVNULL:
-            raise InvalidOperation("Other process stdin already configured")
-
-        # Create a pipeline
-        self.stdout = subprocess.PIPE
-        other.stdin = subprocess.PIPE
-
-        # Store reference to pipeline source for execution
-        other.previous_process = self
-        self.next_process = other
-
-        return other
+        return Pipeline(self, other)
 
     def execute(self) -> Process:
         """Execute process and wait for completion."""
@@ -174,15 +159,10 @@ class Process:
             # Validate stdin early while holding lock
             self._validate_stdin()
 
-            # Execute pipeline source first if this is part of a pipeline
-            if self.previous_process:
-                self.previous_process.execute()
-
         try:
-            stdin = self.previous_process._process.stdout if self.previous_process else self._get_stdin_handle()
             self._process = subprocess.Popen(
                 [self.program] + self.args,
-                stdin=stdin,
+                stdin=self._get_stdin_handle(),
                 stdout=subprocess.PIPE,
                 stderr=self._get_stderr_handle(),
                 cwd=self.cwd,
@@ -192,33 +172,6 @@ class Process:
             )
             self.state = ProcessState.RUNNING
             logger.debug(f"Process started. PID: {self.pid}")
-
-            if self.previous_process:
-                self.previous_process._process.stdout.close()
-
-            if not self.next_process:
-                try:
-                    self._stdout_data, self._stderr_data = self._process.communicate(timeout=self.timeout)
-                    self.state = ProcessState.TERMINATED
-                    logger.debug(f"Process terminated: {self}")
-                except subprocess.TimeoutExpired as e:
-                    # Kill the process on timeout
-                    self._process.kill()
-                    logger.debug(f"Process has been terminated by timeout: {self}")
-                    # Capture whatever output it produced so far
-                    self._stdout_data, self._stderr_data = self._process.communicate()
-                    self.state = ProcessState.TERMINATED
-                    raise TimeoutError(f"Process timed out after {self.timeout} seconds") from e
-
-            if not self.next_process:
-                if self.check and self.returncode not in self.ok_exitcodes:
-                    logger.debug(f"Process exit code is not allowed: {self.returncode}")
-                    raise ProcessError(
-                        command=[self.program] + self.args,
-                        exit_code=self.returncode,
-                        stdout=self._stdout_data,
-                        stderr=self._stderr_data,
-                    )
 
         except FileNotFoundError as e:
             raise ProcessError(
@@ -237,10 +190,10 @@ class Process:
         except Exception:
             raise
         finally:
-            if self.state != ProcessState.TERMINATED:
-                self.state = ProcessState.TERMINATED
-                logger.debug(f"Process terminated: {self}")
             self._cleanup_resources()
+
+        if self._wait:
+            self.wait()
 
         return self
 
@@ -277,12 +230,35 @@ class Process:
         """Cleanup when object is garbage collected."""
         self._cleanup_resources()
 
-    def wait(self) -> Process:
+    def wait(self) -> Self:
         """Wait for process completion and return exit code."""
         if self._process is None:
             raise InvalidOperation("Process not started")
-        if self.state is not ProcessState.TERMINATED:
-            return self.execute()
+        if self.state is ProcessState.TERMINATED:
+            return self
+
+        try:
+            self._stdout_data, self._stderr_data = self._process.communicate(timeout=self.timeout)
+            self.state = ProcessState.TERMINATED
+            logger.debug(f"Process terminated: {self}")
+        except subprocess.TimeoutExpired as e:
+            # Kill the process on timeout
+            self._process.kill()
+            logger.debug(f"Process has been terminated by timeout: {self}")
+            # Capture whatever output it produced so far
+            self._stdout_data, self._stderr_data = self._process.communicate()
+            self.state = ProcessState.TERMINATED
+            raise TimeoutError(f"Process timed out after {self.timeout} seconds") from e
+
+        if self.check and self.returncode not in self.ok_exitcodes:
+            logger.debug(f"Process exit code is not allowed: {self.returncode}")
+            raise ProcessError(
+                command=[self.program] + self.args,
+                exit_code=self.returncode,
+                stdout=self._stdout_data,
+                stderr=self._stderr_data,
+            )
+
         return self
 
     def kill(self, signal: int = 15) -> None:
@@ -296,6 +272,16 @@ class Process:
 
             self._process.send_signal(signal)
             self.state = ProcessState.TERMINATED
+
+    @property
+    def is_started(self) -> bool:
+        """Check if process has started."""
+        return self.state is not ProcessState.PENDING
+
+    @property
+    def is_done(self) -> bool:
+        """Check if process has terminated."""
+        return self.state == ProcessState.TERMINATED
 
     @property
     def pid(self) -> int | None:
@@ -315,15 +301,7 @@ class Process:
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
 
-        # TODO: capture stderr from pipeline source if needed
-        # Combine current stderr with source stderr for pipelines
-        stderr_parts = []
-        if hasattr(self, "_source_stderr") and self._source_stderr:
-            stderr_parts.append(self._source_stderr)
-        if self._stderr_data:
-            stderr_parts.append(self._stderr_data)
-
-        return "".join(stderr_parts)
+        return self._stderr_data or ""
 
     @property
     def returncode(self) -> int:
@@ -369,15 +347,11 @@ class Process:
         if self.timeout is not None:
             cmd_str += f" [timeout: {self.timeout}s]"
 
-        # Add pipeline if this is the end of a pipeline
-        if self.previous_process:
-            cmd_str = f"{self.previous_process} | {cmd_str}"
-
         return cmd_str
 
     def __repr__(self) -> str:
         """Detailed representation."""
-        return f"Process({self.program!r}, {self.args!r})"
+        return f"Process({self.program!r}, {', '.join(repr(arg) for arg in self.args)})"
 
     def _get_stdin_handle(self) -> int | None:
         """Get stdin handle for subprocess."""

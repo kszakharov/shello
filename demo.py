@@ -3,15 +3,17 @@
 Demo script showing shello library capabilities.
 """
 
-from shello import STDOUT, Process, ProcessError, TimeoutError, shell
+from shello import STDOUT, Pipeline, Process, ProcessError, TimeoutError, shell
 
 
-def run_example(process: Process) -> None:
+def run_example(process: Process | Pipeline) -> None:
     """Run a shello Process and print its details and results."""
 
-    if process.env:
-        env = "\n\t".join(f"{k}={v}" for k, v in process.env.items())
-        print(f"   Environment:\n\t{env}")
+    if isinstance(process, Process):
+        if process.env:
+            env = "\n\t".join(f"{k}={v}" for k, v in process.env.items())
+            print(f"   Environment:\n\t{env}")
+
     print(f"   Command: {process}")
 
     try:

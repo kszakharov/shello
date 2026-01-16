@@ -1,5 +1,7 @@
 """Test Process class."""
 
+import time
+
 import pytest
 
 from shello import DEVNULL, STDOUT, Process
@@ -192,6 +194,48 @@ class TestProcess:
 
         assert result.returncode == 0
         assert end_time - start_time >= 0.1  # Should have waited
+
+    def test_pipeline_timeout_source(self):
+        """Test timeout on the source process in a pipeline."""
+        pipeline = Process("sleep", "2", timeout=0.5) | Process("echo", "done")
+        with pytest.raises(TimeoutError, match="timed out after 0.5 seconds"):
+            pipeline.execute()
+
+    def test_pipeline_timeout_sink(self):
+        """Test timeout on the sink process in a pipeline."""
+        pipeline = Process("echo", "hello") | Process("sleep", "2", timeout=0.5)
+        with pytest.raises(TimeoutError, match="timed out after 0.5 seconds"):
+            pipeline.execute()
+
+    def test_binary_mode_timeout(self):
+        """Test timeout in binary mode."""
+        script = "import sys, time; sys.stdout.buffer.write(b'hello'); time.sleep(2)"
+        process = Process("python3", "-c", script, text=False, timeout=0.5)
+        with pytest.raises(TimeoutError):
+            process.execute()
+        # In current implementation, output is empty on timeout
+        assert process.stdout_data == ""
+
+    def test_custom_exit_codes_timeout(self):
+        """Test that timeout takes precedence over custom exit codes."""
+        process = Process("sleep", "2", ok_exitcodes=[1], timeout=0.5)
+        with pytest.raises(TimeoutError):  # Should raise TimeoutError, not ProcessError
+            process.execute()
+
+    def test_very_short_timeout(self):
+        """Test extremely short timeout causes TimeoutError."""
+        process = Process("sleep", "0.01", timeout=0.001)
+        with pytest.raises(TimeoutError):
+            process.execute()
+
+    def test_timeout_race_condition(self):
+        """Test timeout with very fast process."""
+        start = time.time()
+        process = Process("echo", "test", timeout=0.01)
+        result = process.execute()
+        elapsed = time.time() - start
+        assert result.returncode == 0
+        assert elapsed < 0.1  # Should complete quickly
 
 
 def test_binary_mode():

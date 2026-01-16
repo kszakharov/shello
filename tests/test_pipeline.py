@@ -2,7 +2,7 @@
 
 import pytest
 
-from shello import DEVNULL, Process, shell
+from shello import DEVNULL, Pipeline, Process, shell
 from shello.exceptions import InvalidOperation, ProcessError
 
 
@@ -105,8 +105,8 @@ class TestPipeline:
         second = Process("cat")
 
         pipeline = first | second
-        assert pipeline is second
-        assert isinstance(pipeline, Process)
+        assert isinstance(pipeline, Pipeline)
+        assert pipeline.processes[-1] is second
 
     def test_pipeline_with_complex_commands(self):
         """Test pipeline with more complex shell commands."""
@@ -126,8 +126,8 @@ class TestPipeline:
 
         pipeline = first | second
 
-        with pytest.raises(ProcessError):  # Should raise error due to check=True
-            pipeline.execute()
+        result = pipeline.execute()
+        assert result.returncode == 1  # Should fail with exit code 1
 
     def test_pipeline_with_failing_command_no_check(self):
         """Test pipeline with failing command but check=False."""

@@ -29,8 +29,8 @@ class TestPipelineStateMachine:
         assert cmd1.state == ProcessState.TERMINATED
         assert cmd2.state == ProcessState.TERMINATED
 
-        # Pipeline result should be cmd2
-        assert result == cmd2
+        # Pipeline result should be the pipeline containing cmd2
+        assert result.processes[-1] == cmd2
 
     def test_pipeline_failure_state(self):
         """Test state handling when pipeline command fails."""
@@ -55,7 +55,7 @@ class TestPipelineStateMachine:
                 cmd2 = Process("cat")
                 pipeline = cmd1 | cmd2
                 result = pipeline.execute()
-                results.append((threading.get_ident(), result.state))
+                results.append((threading.get_ident(), result.returncode))
             except Exception as e:
                 errors.append((threading.get_ident(), e))
 
@@ -66,13 +66,13 @@ class TestPipelineStateMachine:
             for future in futures:
                 future.result()
 
-        # All should complete successfully
-        assert len(results) == 10
+        # All should complete (either successfully or with errors)
+        assert len(results) + len(errors) == 10
         assert len(errors) == 0
 
-        # All should be in valid terminal states
-        for _thread_id, state in results:
-            assert state == ProcessState.TERMINATED
+        # All should succeed with returncode 0
+        for _thread_id, returncode in results:
+            assert returncode == 0
 
     def test_pipeline_state_after_exception(self):
         """Test pipeline state remains consistent after exceptions."""
@@ -85,8 +85,8 @@ class TestPipelineStateMachine:
         # States should be accessible and consistent
         assert cmd1.state == ProcessState.TERMINATED
         assert cmd2.state == ProcessState.TERMINATED
-        assert pipeline.state == ProcessState.TERMINATED
+        assert pipeline.is_terminated
 
         # Multiple accesses should work
         for _ in range(10):
-            assert pipeline.state == ProcessState.TERMINATED
+            assert pipeline.is_terminated
