@@ -13,7 +13,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, BinaryIO, TextIO
 
-from .exceptions import InvalidArgument, InvalidOperation, ProcessError
+from .exceptions import InvalidArgument, InvalidOperation, ProcessError, TimeoutError
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +94,7 @@ class Process:
         check: bool = True,
         ok_exitcodes: Container[int] | int = 0,
         text: bool = True,
+        timeout: float | None = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -110,6 +111,7 @@ class Process:
             check: Whether to raise exception on non-zero exit
             ok_exitcodes: Acceptable exit codes (default: 0, use ANY_EXITCODE for any) - can be int or container
             text: Whether to treat I/O as text
+            timeout: Timeout in seconds for process execution
             **kwargs: Additional arguments passed to subprocess
         """
         self.program = program
@@ -122,6 +124,7 @@ class Process:
         self.check = check
         self.ok_exitcodes = (ok_exitcodes,) if isinstance(ok_exitcodes, int) else ok_exitcodes
         self.text = text
+        self.timeout = timeout
         self.kwargs = kwargs
 
         # pipeline support
@@ -194,10 +197,18 @@ class Process:
                 self.previous_process._process.stdout.close()
 
             if not self.next_process:
-                self._stdout_data, self._stderr_data = self._process.communicate()
-                logger.debug(f"Process communicate done: {self}")
-                self.state = ProcessState.TERMINATED
-                logger.debug(f"Process terminated: {self}")
+                try:
+                    self._stdout_data, self._stderr_data = self._process.communicate(timeout=self.timeout)
+                    self.state = ProcessState.TERMINATED
+                    logger.debug(f"Process terminated: {self}")
+                except subprocess.TimeoutExpired as e:
+                    # Kill the process on timeout
+                    self._process.kill()
+                    logger.debug(f"Process has been terminated by timeout: {self}")
+                    # Capture whatever output it produced so far
+                    self._stdout_data, self._stderr_data = self._process.communicate()
+                    self.state = ProcessState.TERMINATED
+                    raise TimeoutError(f"Process timed out after {self.timeout} seconds") from e
 
             if not self.next_process:
                 if self.check and self.returncode not in self.ok_exitcodes:
@@ -353,6 +364,10 @@ class Process:
         # Combine command with redirections
         if redirects:
             cmd_str += " " + " ".join(redirects)
+
+        # Add timeout information
+        if self.timeout is not None:
+            cmd_str += f" [timeout: {self.timeout}s]"
 
         # Add pipeline if this is the end of a pipeline
         if self.previous_process:

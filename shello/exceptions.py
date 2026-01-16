@@ -45,3 +45,9 @@ class InvalidOperation(ShellError):
     """Raised when an invalid operation is attempted."""
 
     pass
+
+
+class TimeoutError(ShellError):
+    """Raised when a process times out."""
+
+    pass

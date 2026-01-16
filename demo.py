@@ -3,7 +3,7 @@
 Demo script showing shello library capabilities.
 """
 
-from shello import STDOUT, Process, ProcessError, shell
+from shello import STDOUT, Process, ProcessError, TimeoutError, shell
 
 
 def run_example(process: Process) -> None:
@@ -16,7 +16,7 @@ def run_example(process: Process) -> None:
 
     try:
         process.execute()
-    except ProcessError:
+    except ProcessError, TimeoutError:
         pass
 
     std_output = process.stdout_data.strip()
@@ -77,6 +77,16 @@ def main():
     # I/O redirection, no reader
     print("8. Long command:")
     run_example(shell.yes() | shell.echo("Message"))
+    print()
+
+    # Timeout
+    print("9. Timeout:")
+    run_example(shell.sleep("5", timeout=0.1))
+    print()
+
+    # Timeout, capture output
+    print("10. Timeout, capture output:")
+    run_example(shell.ping("google.com", timeout=0.2))
     print()
 
     print("=== Demo Complete ===")

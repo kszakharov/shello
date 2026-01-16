@@ -3,7 +3,7 @@
 import pytest
 
 from shello import DEVNULL, STDOUT, Process
-from shello.exceptions import InvalidArgument, InvalidOperation, ProcessError
+from shello.exceptions import InvalidArgument, InvalidOperation, ProcessError, TimeoutError
 from shello.process import ProcessState
 
 
@@ -159,6 +159,39 @@ class TestProcess:
 
         assert result.returncode == 0
         assert result.stdout_data.strip() == "test_value"
+
+    def test_timeout_no_timeout(self):
+        """Test timeout parameter when process completes within timeout."""
+        process = Process("echo", "hello", timeout=10.0)
+        result = process.execute()
+
+        assert result.returncode == 0
+        assert result.stdout_data.strip() == "hello"
+
+    def test_timeout_exceeded(self):
+        """Test timeout when process exceeds timeout limit."""
+        process = Process("sleep", "2", timeout=0.1)
+
+        with pytest.raises(TimeoutError, match="timed out after 0.1 seconds"):
+            process.execute()
+
+        # Process should be terminated
+        assert process.state == ProcessState.TERMINATED
+        # Output should be empty for sleep command
+        assert process.stdout_data == ""
+        assert process.stderr_data == ""
+
+    def test_timeout_none(self):
+        """Test that timeout=None means no timeout (default behavior)."""
+        import time
+
+        start_time = time.time()
+        process = Process("sleep", "0.1", timeout=None)
+        result = process.execute()
+        end_time = time.time()
+
+        assert result.returncode == 0
+        assert end_time - start_time >= 0.1  # Should have waited
 
 
 def test_binary_mode():

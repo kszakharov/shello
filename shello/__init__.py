@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .exceptions import InvalidArgument, ProcessError, ShellError
+from .exceptions import InvalidArgument, ProcessError, ShellError, TimeoutError
 from .process import ANY_EXITCODE, DEVNULL, STDERR, STDOUT, Process
 from .shell import Shell
 
@@ -16,6 +16,7 @@ __all__ = [
     "ShellError",
     "ProcessError",
     "InvalidArgument",
+    "TimeoutError",
 ]
 
 # Default shell instance
