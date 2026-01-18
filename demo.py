@@ -3,7 +3,17 @@
 Demo script showing shello library capabilities.
 """
 
-from shello import STDOUT, Pipeline, Process, ProcessError, TimeoutError, shell
+import logging
+import os
+
+from shello import STDOUT, Pipeline, Process, TimeoutError, shell
+from shello.exceptions import ProcessError, TimeoutError, UnexpectedExitCodeError
+
+debug = os.environ.get("DEBUG")
+logging.basicConfig(
+    level=logging.DEBUG if debug else logging.ERROR,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+)
 
 
 def run_example(process: Process | Pipeline) -> None:
@@ -18,7 +28,7 @@ def run_example(process: Process | Pipeline) -> None:
 
     try:
         process.execute()
-    except ProcessError, TimeoutError:
+    except ProcessError, TimeoutError, UnexpectedExitCodeError:
         pass
 
     std_output = process.stdout_data.strip()

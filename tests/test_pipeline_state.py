@@ -85,8 +85,8 @@ class TestPipelineStateMachine:
         # States should be accessible and consistent
         assert cmd1.state == ProcessState.TERMINATED
         assert cmd2.state == ProcessState.TERMINATED
-        assert pipeline.is_terminated
+        assert pipeline.is_done
 
         # Multiple accesses should work
         for _ in range(10):
-            assert pipeline.is_terminated
+            assert pipeline.is_done

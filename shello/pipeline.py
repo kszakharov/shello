@@ -4,7 +4,7 @@ import logging
 import subprocess
 from typing import TYPE_CHECKING, Self
 
-from shello.exceptions import InvalidOperation, ProcessError
+from shello.exceptions import InvalidOperation, ProcessError, TimeoutError
 
 if TYPE_CHECKING:
     from shello.process import Process
@@ -85,14 +85,14 @@ class Pipeline:
         """Get captured stdout."""
         if not self.is_done:
             raise InvalidOperation("Pipeline not fully executed")
-        return "".join(proc.stdout_data for proc in self.processes)
+        return self.processes[-1].stdout_data
 
     @property
     def stderr_data(self) -> str:
         """Get captured stderr."""
         if not self.is_done:
             raise InvalidOperation("Pipeline not fully executed")
-        return "".join(proc.stderr_data for proc in self.processes)
+        return self.processes[-1].stderr_data
 
     @property
     def returncode(self) -> int:
@@ -129,7 +129,9 @@ class Pipeline:
 
         for process in self.processes:
             process._wait = False
-            process.stdin = prev_stdout or process.stdin
+            process.capture_stdout = False if process is not self.processes[-1] else process.capture_stdout
+            process.stdin = prev_stdout if process is not self.processes[0] else process.stdin
+            process.check = False if process is not self.processes[-1] else process.check
             process.stdout = subprocess.PIPE
 
             process.execute()
@@ -148,12 +150,27 @@ class Pipeline:
         """
         Wait for all processes in the pipeline to complete.
 
+        Iterates through all processes and waits for each to finish.
+        Logs completion and propagates any errors that occur.
+
         Returns:
-            The pipeline instance itself
+            The pipeline instance itself for method chaining
+
+        Raises:
+            TimeoutError: If any process times out while waiting
+            ProcessError: If any process fails during execution
         """
         for process in self.processes:
+            logger.debug("%s: waiting for process (state=%s)", process, process.state)
             try:
                 process.wait()
+                logger.info("%s: process completed (exit_code=%s, state=%s)", process, process.returncode, process.state)
+            except TimeoutError:
+                logger.debug("%s: process timed out (state=%s)", process, process.state)
+                raise
             except ProcessError as e:
-                logger.debug(f"Error waiting for process: {e}")
+                logger.error("%s: process failed (state=%s)", process, process.state)
+                logger.error("%s: process error details", process, exc_info=e)
+                raise
+        logger.info("All processes have completed")
         return self

@@ -51,3 +51,15 @@ class TimeoutError(ShellError):
     """Raised when a process times out."""
 
     pass
+
+
+class UnexpectedExitCodeError(ShellError):
+    """Raised when a process exits with an unexpected return code."""
+
+    pass
+
+
+class AlreadyRunError(Exception):
+    """Raised when a run-once method is called more than once."""
+
+    pass

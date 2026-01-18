@@ -3,7 +3,7 @@
 import pytest
 
 from shello import DEVNULL, Pipeline, Process, shell
-from shello.exceptions import InvalidOperation, ProcessError
+from shello.exceptions import InvalidOperation
 
 
 class TestPipeline:
@@ -122,7 +122,7 @@ class TestPipeline:
         """Test pipeline where one command fails."""
         # First command succeeds, second fails
         first = Process("echo", "test")
-        second = Process("false")  # Always fails
+        second = Process("false", check=False)  # Always fails
 
         pipeline = first | second
 
