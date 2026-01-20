@@ -9,7 +9,7 @@ import os
 import subprocess
 import threading
 import time
-from collections.abc import Container
+from collections.abc import Callable, Container
 from enum import Enum
 from pathlib import Path
 from threading import Thread
@@ -22,11 +22,18 @@ from .pipeline import Pipeline
 logger = logging.getLogger(__name__)
 
 
-def eintr_retry(func):
-    """Retry system calls interrupted by EINTR."""
+def eintr_retry(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Retry system calls interrupted by EINTR.
+
+    Args:
+        func: Function that may raise OSError with errno.EINTR
+
+    Returns:
+        Wrapped function that automatically retries on EINTR
+    """
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         while True:
             try:
                 return func(*args, **kwargs)
@@ -106,8 +113,7 @@ class Process:
         wait: bool = True,
         **kwargs: Any,
     ) -> None:
-        """
-        Initialize a Process.
+        """Initialize a Process.
 
         Args:
             program: The program to execute
@@ -121,6 +127,11 @@ class Process:
             ok_exitcodes: Acceptable exit codes (default: 0, use ANY_EXITCODE for any) - can be int or container
             text: Whether to treat I/O as text
             timeout: Timeout in seconds for process execution
+            capture_stdout: Whether to capture stdout for later retrieval (default: True)
+            capture_stderr: Whether to capture stderr for later retrieval (default: True)
+            print_stdout: Whether to print stdout to console during execution (default: False)
+            print_stderr: Whether to print stderr to console during execution (default: False)
+            wait: Whether to wait for process to complete before returning
             **kwargs: Additional arguments passed to subprocess
         """
         self.program = program
@@ -160,15 +171,37 @@ class Process:
         self._opened_handles: list[TextIO] = []
 
     def __or__(self, other: Process) -> Pipeline:
-        """Support shell-style pipeline operator: cmd1 | cmd2."""
+        """Support shell-style pipeline operator: cmd1 | cmd2.
 
+        Args:
+            other: Process to pipe stdout into
+
+        Returns:
+            Pipeline connecting this process to the other
+
+        Notes:
+            If `other` is not a Process instance, returns NotImplemented
+            to allow Python to handle the operation with the reflected method.
+        """
         if not isinstance(other, Process):
             return NotImplemented
 
         return Pipeline(self, other)
 
     def execute(self) -> Process:
-        """Execute process."""
+        """Execute the process.
+
+        Starts the subprocess and begins background monitoring threads.
+        If wait=True, blocks until completion.
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            InvalidOperation: If process already executed
+            ProcessError: If command not found or subprocess fails
+            TimeoutError: If process times out during execution
+        """
         if self.state is not ProcessState.PENDING:
             logger.error("%s: execute() called in invalid state (%s)", self.program, self.state)
             raise InvalidOperation("Process already executed")
@@ -226,8 +259,7 @@ class Process:
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
     def _read_stdout(self):
-        """
-        Read stdout from the process in a background thread.
+        """Read stdout from the process in a background thread.
 
         Handles capturing and/or printing stdout based on configuration.
         This method runs in a separate thread and is decorated with @run_once.
@@ -258,8 +290,7 @@ class Process:
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
     def _read_stderr(self):
-        """
-        Read stderr from the process in a background thread.
+        """Read stderr from the process in a background thread.
 
         Handles capturing and/or printing stderr based on configuration.
         This method runs in a separate thread and is decorated with @run_once.
@@ -288,8 +319,7 @@ class Process:
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
     def _handle_execution(self) -> None:
-        """
-        Handle process execution and timeout monitoring in a background thread.
+        """Handle process execution and timeout monitoring in a background thread.
 
         Waits for the process to complete, handling timeouts and cleanup.
         """
@@ -350,8 +380,7 @@ class Process:
             thread.start()
 
     def _task_done(self) -> None:
-        """
-        Called when a background thread finishes.
+        """Called when a background thread finishes.
 
         Tracks completion of background threads and marks the process as terminated
         when all threads have finished. This method is thread-safe and validates
@@ -415,7 +444,18 @@ class Process:
         self._cleanup_resources()
 
     def wait(self) -> Self:
-        """Wait for process completion and return exit code."""
+        """Wait for process completion and return exit code.
+
+        Blocks until all background threads complete and process terminates.
+        If check=True, validates exit code and raises exceptions.
+
+        Returns:
+            Self for method chaining
+
+        Raises:
+            InvalidOperation: If process not started
+            UnexpectedExitCodeError: If exit code not in ok_exitcodes (when check=True)
+        """
         if self._process is None:
             logger.error("%s: wait() called but process not started", self.program)
             raise InvalidOperation("Process not started")
@@ -434,11 +474,10 @@ class Process:
         return self
 
     def check_returncode(self) -> None:
-        """
-        Check if the process exit code is acceptable.
+        """Check if the process exit code is acceptable.
 
-        Raises UnexpectedExitCodeError if the return code is not in ok_exitcodes.
-        This method is only called when check=True and the process has terminated.
+        Raises:
+            UnexpectedExitCodeError: If the return code is not in ok_exitcodes.
         """
         if self.returncode not in self.ok_exitcodes:
             logger.warning(
@@ -452,8 +491,7 @@ class Process:
             )
 
     def _check_exception(self) -> None:
-        """
-        Raise stored exception if any.
+        """Raise stored exception if any.
 
         This method is called after process execution to raise any exceptions
         that occurred during background processing. The exception is cleared
@@ -465,8 +503,7 @@ class Process:
             raise exc
 
     def kill(self, signal: int = 15) -> None:
-        """
-        Send signal to the process.
+        """Send signal to the process.
 
         Args:
             signal: Signal number to send (default: 15, SIGTERM)

@@ -15,9 +15,9 @@ def with_callback(
     on_done: Callable[[SelfT], None],
     on_error: Callable[[SelfT, Exception], R] | None = None,
 ) -> Callable[[Callable[..., R]], Callable[..., R]]:
-    """
-    A decorator that calls `on_done` after the function finishes,
-    and `on_error` if an exception occurs.
+    """A decorator that calls `on_done` after the function finishes.
+
+    Calls `on_error` if an exception occurs.
     """
 
     def decorator(func: Callable[..., R]) -> Callable[..., R]:
@@ -37,27 +37,26 @@ def with_callback(
     return decorator
 
 
-def run_once(func):
-    """
-    Decorator that ensures a method can only be executed once per instance.
+def run_once(func: Callable[..., R]) -> Callable[..., R]:
+    """Decorator that ensures a method can only be executed once per instance.
 
     Uses a WeakKeyDictionary to track execution state per instance, avoiding
     memory leaks. Thread-safe with double-checked locking pattern.
 
     Args:
-        func: The function to decorate
+        func: The function to decorate.
 
     Returns:
-        Decorated function that raises AlreadyRunError on subsequent calls
+        Decorated function that raises AlreadyRunError on subsequent calls.
 
     Raises:
-        AlreadyRunError: If the method has already been called for this instance
+        AlreadyRunError: If the method has already been called for this instance.
     """
     run_state = weakref.WeakKeyDictionary()  # {instance: (has_run, lock)}
     state_lock = threading.Lock()
 
     @wraps(func)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> R:
         # Initialize per-instance state if needed
         with state_lock:
             if self not in run_state:

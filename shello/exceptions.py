@@ -7,6 +7,12 @@ class ShellError(Exception):
     """Base exception for all shell library errors."""
 
     def __init__(self, message: str, *args: object) -> None:
+        """Initialize ShellError with optional format arguments.
+
+        Args:
+            message: Error message format string (can contain {} placeholders).
+            *args: Arguments to format into the message string.
+        """
         super().__init__(message.format(*args) if args else message)
         self.message = message
 
@@ -22,6 +28,15 @@ class ProcessError(ShellError):
         stderr: str | None = None,
         message: str | None = None,
     ) -> None:
+        """Initialize ProcessError with execution details.
+
+        Args:
+            command: List of command and arguments that failed..
+            exit_code: Process exit code..
+            stdout: Captured stdout output (optional)..
+            stderr: Captured stderr output (optional)..
+            message: Custom error message (auto-generated if None)..
+        """
         self.command = command
         self.exit_code = exit_code
         self.stdout = stdout
