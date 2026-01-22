@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import errno
-import functools
 import logging
 import os
 import subprocess
@@ -20,28 +18,6 @@ from .exceptions import InvalidArgument, InvalidOperation, ProcessError, Timeout
 from .pipeline import Pipeline
 
 logger = logging.getLogger(__name__)
-
-
-def eintr_retry(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Retry system calls interrupted by EINTR.
-
-    Args:
-        func: Function that may raise OSError with errno.EINTR
-
-    Returns:
-        Wrapped function that automatically retries on EINTR
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        while True:
-            try:
-                return func(*args, **kwargs)
-            except OSError as e:
-                if e.errno != errno.EINTR:
-                    raise
-
-    return wrapper
 
 
 class _DevNullType:

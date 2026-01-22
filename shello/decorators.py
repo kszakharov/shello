@@ -1,3 +1,4 @@
+import errno
 import functools
 import threading
 import weakref
@@ -72,5 +73,27 @@ def run_once(func: Callable[..., R]) -> Callable[..., R]:
 
             done.set()
             return func(self, *args, **kwargs)
+
+    return wrapper
+
+
+def eintr_retry(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Retry system calls interrupted by EINTR.
+
+    Args:
+        func: Function that may raise OSError with errno.EINTR
+
+    Returns:
+        Wrapped function that automatically retries on EINTR
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except OSError as e:
+                if e.errno != errno.EINTR:
+                    raise
 
     return wrapper
