@@ -348,9 +348,9 @@ class Process:
 
         logger.debug("%s: starting background monitor threads", self.program)
 
-        self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]", daemon=True))
-        self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]", daemon=True))
-        self._threads.append(Thread(target=self._handle_execution, name=f"[{self.program} wait]", daemon=True))
+        self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]"))
+        self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]"))
+        self._threads.append(Thread(target=self._handle_execution, name=f"[{self.program} wait]"))
 
         for thread in self._threads:
             thread.start()
