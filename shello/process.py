@@ -375,12 +375,7 @@ class Process:
                 )
 
             self._threads_done_set.add(thread_id)
-            logger.debug(
-                "%s: thread done (%d/%d)",
-                self.program,
-                len(self._threads_done_set),
-                self._threads_total,
-            )
+            logger.debug("%s: thread done (%d/%d)", self.program, len(self._threads_done_set), self._threads_total)
 
             if len(self._threads_done_set) == self._threads_total:
                 # Only when all distinct threads have finished
