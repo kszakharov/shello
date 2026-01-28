@@ -19,7 +19,7 @@ class TestPipeline:
 
         # "hello" + newline = 6 characters
         assert result.returncode == 0
-        assert "6" in result.stdout_data
+        assert "6" in result.stdout_data.decode()
 
     def test_pipeline_with_shell(self):
         """Test pipeline using shell factory."""
@@ -40,7 +40,7 @@ class TestPipeline:
 
         assert result.returncode == 0
         # wc -c counts characters, "output\n" is 7 characters
-        assert "7" in result.stdout_data
+        assert "7" in result.stdout_data.decode()
         # Pipeline stderr should contain stderr from first command
         # assert "error" in result.stderr_data  # Not implemented
 
@@ -50,7 +50,7 @@ class TestPipeline:
         result = pipeline.execute()
 
         assert result.returncode == 0
-        assert "3" in result.stdout_data  # 3 lines
+        assert "3" in result.stdout_data.decode() # 3 lines
 
     def test_pipeline_with_stdin(self):
         """Test pipeline with stdin input to first process."""
@@ -62,7 +62,7 @@ class TestPipeline:
 
         assert result.returncode == 0
         # Should remove spaces from the character count
-        assert "11" in result.stdout_data or "9" in result.stdout_data
+        assert "11" in result.stdout_data.decode() or "9" in result.stdout_data.decode()
 
     def test_pipeline_already_configured_stdout(self):
         """Test that pipeline fails if first process stdout already configured."""
@@ -97,7 +97,7 @@ class TestPipeline:
         result = pipeline.execute()
 
         assert result.returncode == 0
-        assert "first" in result.stdout_data
+        assert "first" in result.stdout_data.decode()
 
     def test_pipeline_return_value(self):
         """Test that pipeline returns the last process."""

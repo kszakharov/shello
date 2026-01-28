@@ -80,7 +80,7 @@ class Process:
         env: dict[str, str] | None = None,
         check: bool = True,
         ok_exitcodes: Container[int] | int = 0,
-        text: bool = True,
+        text: bool = False,
         timeout: float | None = None,
         capture_stdout: bool = True,
         capture_stderr: bool = True,
@@ -514,7 +514,7 @@ class Process:
         return self._process.returncode if self._process else -1
 
     @property
-    def stdout_data(self) -> str:
+    def stdout_data(self) -> str | bytes:
         """Get captured stdout."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
@@ -522,7 +522,7 @@ class Process:
         return self._stdout_data or ""
 
     @property
-    def stderr_data(self) -> str:
+    def stderr_data(self) -> str | bytes:
         """Get captured stderr."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")

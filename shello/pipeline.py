@@ -113,14 +113,14 @@ class Pipeline:
             raise InvalidOperation("Process has already been executed")
 
     @property
-    def stdout_data(self) -> str:
+    def stdout_data(self) -> str | bytes:
         """Get captured stdout."""
         if not self.is_done:
             raise InvalidOperation("Pipeline not fully executed")
         return self.processes[-1].stdout_data
 
     @property
-    def stderr_data(self) -> str:
+    def stderr_data(self) -> str | bytes:
         """Get captured stderr."""
         if not self.is_done:
             raise InvalidOperation("Pipeline not fully executed")

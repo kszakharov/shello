@@ -5,9 +5,11 @@ from __future__ import annotations
 from .exceptions import InvalidArgument, ProcessError, ShellError, TimeoutError
 from .pipeline import Pipeline
 from .process import ANY_EXITCODE, DEVNULL, STDERR, STDOUT, Process
-from .shell import Shell
+from .shell import Shell, binary_shell, shell
 
 __all__ = [
+    "binary_shell",
+    "shell",
     "Shell",
     "Process",
     "ANY_EXITCODE",
@@ -20,6 +22,3 @@ __all__ = [
     "TimeoutError",
     "Pipeline",
 ]
-
-# Default shell instance
-shell = Shell()

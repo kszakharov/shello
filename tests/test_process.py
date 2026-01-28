@@ -19,7 +19,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.strip() == "hello"
+        assert result.stdout_data.decode().strip() == "hello"
         assert result.stderr_data == ""
 
     def test_command_with_args(self):
@@ -28,7 +28,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.strip() == "hello world"
+        assert result.stdout_data.decode().strip() == "hello world"
 
     def test_command_not_found(self):
         """Test handling of non-existent command."""
@@ -54,7 +54,7 @@ class TestProcess:
 
         assert result.returncode == 0
         assert result.stdout_data == ""
-        assert result.stderr_data.strip() == "error message"
+        assert result.stderr_data.decode().strip() == "error message"
 
     def test_stdin_string(self):
         """Test stdin with string input."""
@@ -63,7 +63,7 @@ class TestProcess:
 
         assert result.returncode == 0
         # "hello world" has 11 characters
-        assert "11" in result.stdout_data
+        assert "11" in result.stdout_data.decode()
 
     def test_devnull_stdin(self):
         """Test DEVNULL stdin (default)."""
@@ -87,7 +87,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert "error" in result.stdout_data
+        assert "error" in result.stdout_data.decode()
         assert result.stderr_data == ""
 
     def test_process_attributes(self):
@@ -153,7 +153,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert "test.txt" in result.stdout_data
+        assert "test.txt" in result.stdout_data.decode()
 
     def test_environment_variables(self):
         """Test setting environment variables."""
@@ -161,7 +161,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.strip() == "test_value"
+        assert result.stdout_data.decode().strip() == "test_value"
 
     def test_timeout_no_timeout(self):
         """Test timeout parameter when process completes within timeout."""
@@ -169,7 +169,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.strip() == "hello"
+        assert result.stdout_data.decode().strip() == "hello"
 
     def test_timeout_exceeded(self):
         """Test timeout when process exceeds timeout limit."""

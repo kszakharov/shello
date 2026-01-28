@@ -65,3 +65,7 @@ class Shell:
             return Process(program_name, *args, **options)
 
         return create_process
+
+
+binary_shell = Shell()
+shell = Shell(text=True)
