@@ -3,48 +3,28 @@
 from __future__ import annotations
 
 import logging
-import os
 import subprocess
 import threading
 import time
-from collections.abc import Callable, Container
+from collections.abc import Container
 from enum import Enum
+from io import BufferedIOBase, TextIOBase
 from pathlib import Path
 from threading import Thread
-from typing import Any, BinaryIO, Self, TextIO
+from typing import IO, Any, AnyStr, BinaryIO, Self, TextIO, cast
 
 from .decorators import run_once, with_callback
 from .exceptions import InvalidArgument, InvalidOperation, ProcessError, TimeoutError, UnexpectedExitCodeError
+from .helpers import check_fd
 from .pipeline import Pipeline
+from .types import FileDescriptorLike
 
 logger = logging.getLogger(__name__)
 
 
-class _DevNullType:
-    """Singleton type for /dev/null redirection."""
-
-    def __repr__(self) -> str:
-        return "DEVNULL"
-
-
-class _StdoutType:
-    """Singleton type for stdout redirection."""
-
-    def __repr__(self) -> str:
-        return "STDOUT"
-
-
-class _StderrType:
-    """Singleton type for stderr redirection."""
-
-    def __repr__(self) -> str:
-        return "STDERR"
-
-
-# Singleton instances
-DEVNULL = _DevNullType()
-STDOUT = _StdoutType()
-STDERR = _StderrType()
+DEVNULL = subprocess.DEVNULL
+STDOUT = subprocess.STDOUT
+PIPE = subprocess.PIPE
 
 # Acceptable exit codes - range(256) represents any valid exit code
 ANY_EXITCODE = range(256)
@@ -59,11 +39,6 @@ class ProcessState(Enum):
     TERMINATED = 3  # Process finished, cleaned up
 
 
-# Type aliases for better readability
-InputStream = str | bytes | TextIO | BinaryIO | None
-OutputStream = str | Path | TextIO | BinaryIO | None | _DevNullType | _StdoutType | _StderrType | int
-
-
 class Process:
     """Represents a process that can be executed."""
 
@@ -73,9 +48,9 @@ class Process:
         self,
         program: str,
         *args: str,
-        stdin: InputStream = None,  # type: ignore[arg-type]
-        stdout: OutputStream = None,  # type: ignore[arg-type]
-        stderr: OutputStream = None,  # type: ignore[arg-type]
+        stdin: AnyStr | FileDescriptorLike | Path | None = None,
+        stdout: FileDescriptorLike | Path | None = None,
+        stderr: FileDescriptorLike | Path | None = None,
         cwd: str | Path | None = None,
         env: dict[str, str] | None = None,
         check: bool = True,
@@ -94,7 +69,7 @@ class Process:
         Args:
             program: The program to execute
             *args: Command line arguments for program
-            stdin: Input source (DEVNULL, string, file-like object)
+            stdin: Input source (string, file-like object)
             stdout: Output destination (None, file, path, STDOUT, STDERR)
             stderr: Error output destination (None, file, path, STDOUT, STDERR)
             cwd: Working directory
@@ -129,9 +104,9 @@ class Process:
         self.kwargs = kwargs
 
         # Runtime state
-        self._process: subprocess.Popen[str] | None = None
-        self._stdout_data: str | None = None
-        self._stderr_data: str | None = None
+        self._process: subprocess.Popen | None = None
+        self._stdout_data: str | bytes | None = None
+        self._stderr_data: str | bytes | None = None
         self._threads: list[Thread] = []
         self._state: ProcessState = ProcessState.PENDING
         self.start_time: float | None = None
@@ -141,10 +116,10 @@ class Process:
         self._threads_done_event = threading.Event()
         self._threads_done_set: set[int] = set()
         self._threads_done_lock = threading.Lock()
-        self._threads_total = 3  # number of distinct threads
+        self._threads_total = 4  # number of distinct threads
 
         # Resource management
-        self._opened_handles: list[TextIO] = []
+        self._opened_handles: list[IO] = []
 
     def __or__(self, other: Process) -> Pipeline:
         """Support shell-style pipeline operator: cmd1 | cmd2.
@@ -186,14 +161,11 @@ class Process:
             logger.debug("%s: starting execution", self.program)
             self.state = ProcessState.SPAWNING
 
-            # Validate stdin early while holding lock
-            self._validate_stdin()
-
         try:
             self._process = subprocess.Popen(
                 [self.program] + self.args,
                 stdin=self._get_stdin_handle(),
-                stdout=subprocess.PIPE,  # self._get_stdout_handle(),
+                stdout=self._get_stdout_handle(),
                 stderr=self._get_stderr_handle(),
                 cwd=self.cwd,
                 env=self.env,
@@ -231,6 +203,45 @@ class Process:
         self._check_exception()
 
         return self
+
+    @run_once
+    @with_callback(on_done=lambda self: self._task_done())
+    def _write_stdin(self) -> None:
+        """Write stdin data to the process in a background thread.
+
+        Handles string/bytes stdin input and closes the stream when done.
+        """
+        if self._process is None:
+            logger.warning("%s: cannot write stdin – process is not started", self.program)
+            return
+
+        if self._process.stdin is None:
+            logger.debug("%s: stdin is not writable (stdin=None)", self.program)
+            return
+
+        if not isinstance(self.stdin, (str, bytes)):
+            logger.debug("%s: no stdin data to write", self.program)
+            return
+
+        try:
+            logger.debug("%s: writing stdin", self.program)
+
+            self._process.stdin.write(self.stdin)
+            self._process.stdin.flush()
+
+        except BrokenPipeError:
+            # Child exited early or closed stdin
+            logger.debug("%s: broken pipe while writing stdin", self.program)
+
+        except Exception:
+            logger.exception("%s: error while writing stdin", self.program)
+            self._exception = self._exception or Exception(f"{self.program}: failed to write stdin")
+
+        finally:
+            try:
+                self._process.stdin.close()
+            except Exception:
+                pass
 
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
@@ -348,6 +359,7 @@ class Process:
 
         logger.debug("%s: starting background monitor threads", self.program)
 
+        self._threads.append(Thread(target=self._write_stdin, name=f"[{self.program} stdin]"))
         self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]"))
         self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]"))
         self._threads.append(Thread(target=self._handle_execution, name=f"[{self.program} wait]"))
@@ -555,8 +567,6 @@ class Process:
             redirects.append(f"> {self.stdout}")
         elif self.stdout is DEVNULL:
             redirects.append("> /dev/null")
-        elif self.stdout is STDERR:
-            redirects.append(">&2")
 
         # stderr redirection
         if self.stderr is STDOUT:
@@ -580,75 +590,59 @@ class Process:
         """Detailed representation."""
         return f"Process({self.program!r}, {', '.join(repr(arg) for arg in self.args)})"
 
-    def _get_stdin_handle(self) -> int | None:
+    def _get_stdin_handle(self) -> int | IO | None:
         """Get stdin handle for subprocess."""
-        if self.stdin is DEVNULL:
-            return subprocess.DEVNULL
-        elif isinstance(self.stdin, (str, bytes)):
-            # Create a pipe
-            r_fd, w_fd = os.pipe()
-
-            # Write data to the write end
-            if isinstance(self.stdin, str):
-                os.write(w_fd, self.stdin.encode())
-            else:
-                os.write(w_fd, self.stdin)
-            os.close(w_fd)
-            return r_fd
-
-        elif hasattr(self.stdin, "read"):
+        if self.stdin in (None, subprocess.PIPE):
+            return subprocess.PIPE
+        if isinstance(self.stdin, int):
+            check_fd(self.stdin, "r")
             return self.stdin
-        elif self.stdin is None:
-            return None
-        else:
+        elif isinstance(self.stdin, (str, bytes)):
             return subprocess.PIPE
+        elif isinstance(self.stdin, BufferedIOBase):
+            return cast(BinaryIO, self.stdin)
+        elif isinstance(self.stdin, TextIOBase):
+            return cast(TextIO, self.stdin)
+        elif isinstance(self.stdin, Path):
+            handle = open(self.stdin, "rb")
+            self._opened_handles.append(handle)
+            return handle
 
-    def _get_stdout_handle(self) -> int | TextIO | None:
+        raise InvalidArgument(f"Invalid stdin value: {self.stdin!r}")
+
+    def _get_stdout_handle(self) -> int | IO | None:
         """Get stdout handle for subprocess."""
-        if self.stdout is DEVNULL:
+        if self.stdout in (None, subprocess.PIPE):
+            return subprocess.PIPE
+        elif self.stdout is DEVNULL:
             return subprocess.DEVNULL
-        elif isinstance(self.stdout, (str, Path)):
-            handle = open(self.stdout, "w")
-            self._opened_handles.append(handle)
-            return handle
-        elif hasattr(self.stdout, "write"):
+        elif isinstance(self.stdout, int):
+            check_fd(self.stdout, "w")
             return self.stdout
-        elif self.stdout is subprocess.PIPE or self.stdout is None:
-            return subprocess.PIPE
-        else:
-            return subprocess.PIPE
-
-    def _get_stderr_handle(self) -> int | TextIO | None:
-        """Get stderr handle for subprocess."""
-        if self.stderr is DEVNULL:
-            return subprocess.DEVNULL
-        elif self.stderr is STDOUT:
-            return subprocess.STDOUT
-        elif isinstance(self.stderr, (str, Path)):
-            handle = open(self.stderr, "w")
+        elif isinstance(self.stdout, Path):
+            handle = open(self.stdout, "wb")
             self._opened_handles.append(handle)
             return handle
-        elif hasattr(self.stderr, "write"):
+
+        raise InvalidArgument(f"Invalid stdout value: {self.stdout!r}")
+
+    def _get_stderr_handle(self) -> int | IO | None:
+        """Get stderr handle for subprocess."""
+        if self.stderr in (None, subprocess.PIPE):
+            return subprocess.PIPE
+        elif self.stderr is subprocess.STDOUT:
+            return subprocess.STDOUT
+        elif self.stderr is subprocess.DEVNULL:
+            return subprocess.DEVNULL
+        elif isinstance(self.stderr, int):
+            check_fd(self.stderr, "w")
             return self.stderr
-        elif self.stderr is subprocess.PIPE or self.stderr is None:
-            return subprocess.PIPE
-        else:
-            return subprocess.PIPE
+        elif isinstance(self.stderr, Path):
+            handle = open(self.stderr, "wb")
+            self._opened_handles.append(handle)
+            return handle
 
-    def _validate_stdin(self) -> None:
-        """Validate stdin input type."""
-        # Only allow specific int constants like subprocess.PIPE, not arbitrary ints
-        is_valid_int = isinstance(self.stdin, int) and self.stdin == subprocess.PIPE
-
-        valid_types = (
-            str,
-            bytes,
-            type(None),
-            _DevNullType,
-        )
-
-        if not (isinstance(self.stdin, valid_types) or is_valid_int or hasattr(self.stdin, "read")):
-            raise InvalidArgument(f"Invalid stdin type: {type(self.stdin)}")
+        raise InvalidArgument(f"Invalid stderr value: {self.stderr!r}")
 
     def _prepare_stdin_input(self) -> str | None:
         """Prepare input for stdin."""

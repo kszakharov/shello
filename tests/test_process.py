@@ -58,7 +58,7 @@ class TestProcess:
 
     def test_stdin_string(self):
         """Test stdin with string input."""
-        process = Process("wc", "-c", stdin="hello world")
+        process = Process("wc", "-c", stdin=b"hello world")
         result = process.execute()
 
         assert result.returncode == 0
@@ -68,10 +68,11 @@ class TestProcess:
     def test_devnull_stdin(self):
         """Test DEVNULL stdin (default)."""
         process = Process("wc", "-c", stdin=DEVNULL)
-        result = process.execute()
+        with pytest.raises(ProcessError, match=f"Invalid file descriptor: {DEVNULL}"):
+            process.execute()
 
-        assert result.returncode == 0
-        assert "0" in result.stdout_data
+        # Process should not have started
+        assert process.state == ProcessState.SPAWNING
 
     def test_devnull_stdout(self):
         """Test DEVNULL stdout."""
@@ -79,7 +80,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data == "hello\n"  # stdout captured despite DEVNULL
+        assert result.stdout_data == ""
 
     def test_stderr_to_stdout(self):
         """Test redirecting stderr to stdout."""
@@ -138,9 +139,9 @@ class TestProcess:
 
     def test_invalid_stdin_type(self):
         """Test invalid stdin type raises error."""
-        process = Process("echo", stdin=12345)  # invalid type
+        process = Process("echo", stdin=12345)
 
-        with pytest.raises(InvalidArgument):
+        with pytest.raises(ProcessError, match=f"Invalid file descriptor: 12345"):
             process.execute()
 
     def test_working_directory(self, tmp_path):

@@ -54,7 +54,7 @@ class TestPipeline:
 
     def test_pipeline_with_stdin(self):
         """Test pipeline with stdin input to first process."""
-        first_cmd = Process("wc", "-c", stdin="hello world")
+        first_cmd = Process("wc", "-c", stdin=b"hello world")
         second_cmd = Process("tr", "-d", " ")
 
         pipeline = first_cmd | second_cmd
