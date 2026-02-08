@@ -28,7 +28,7 @@ def run_example(process: Process | Pipeline) -> None:
 
     try:
         process.execute()
-    except ProcessError, TimeoutError, UnexpectedExitCodeError:
+    except (ProcessError, TimeoutError, UnexpectedExitCodeError):
         pass
 
     std_output = process.stdout_data.strip()

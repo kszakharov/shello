@@ -114,7 +114,7 @@ class Process:
         self._exception: Exception | None = None
         self._lock = threading.RLock()
         self._threads_done_event = threading.Event()
-        self._threads_done_set: set[int] = set()
+        self._threads_done_set: set[threading.Thread] = set()
         self._threads_done_lock = threading.Lock()
         self._threads_total = 4  # number of distinct threads
 
@@ -374,8 +374,9 @@ class Process:
         when all threads have finished. This method is thread-safe and validates
         that each thread calls it exactly once.
         """
-        thread_name = threading.current_thread().name
-        thread_id = threading.get_ident()
+        thread = threading.current_thread()
+        thread_name = thread.name
+        thread_id = thread.ident
         with self._threads_done_lock:
             if thread_id in self._threads_done_set:
                 # Thread should be done once
@@ -386,7 +387,7 @@ class Process:
                     "This indicates a bug in thread lifecycle handling."
                 )
 
-            self._threads_done_set.add(thread_id)
+            self._threads_done_set.add(thread)
             logger.debug("%s: thread done (%d/%d)", self.program, len(self._threads_done_set), self._threads_total)
 
             if len(self._threads_done_set) == self._threads_total:

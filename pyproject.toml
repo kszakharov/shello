@@ -3,7 +3,7 @@ name = "shello"
 version = "0.1.0"
 description = "A modern Python library for shell-style process execution"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
