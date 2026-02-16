@@ -1,0 +1,5 @@
+shello ({{VERSION}}) unstable; urgency=medium
+
+  * Automated build. Commit {{COMMIT_SHA}}
+
+ -- Kostiantyn Zakharov <kszakharov@gmail.com>  {{DATE}}

@@ -1,0 +1,80 @@
+name: Create GitHub Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TZ: America/Toronto
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Remove classifiers
+        run: |
+          # Debian's packaged build tools may ship an outdated classifier list
+          # that does not recognize newer Python versions (e.g., 3.14). This
+          # causes pybuild to fail, so remove the classifiers section during CI.
+          sed -i '/^classifiers = \[/,/^\]/d' pyproject.toml
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            debhelper \
+            dh-python \
+            pybuild-plugin-pyproject \
+            python3-all \
+            python3-hatchling
+
+      - name: Set up Debian packaging variables
+        id: vars
+        run: |
+          echo "version=$(uv version --short)" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date -R)" >> $GITHUB_OUTPUT
+
+      - name: Prepare Debian packaging files
+        run: |
+          sed -e "s/{{VERSION}}/${{ steps.vars.outputs.version }}/g" \
+              -e "s/{{COMMIT_SHA}}/${{ steps.vars.outputs.sha_short }}/g" \
+              -e "s/{{DATE}}/${{ steps.vars.outputs.date }}/g" \
+              debian/changelog.in > debian/changelog
+      - name: Build .deb package
+        run: |
+          dpkg-checkbuilddeps
+          dpkg-buildpackage -us -uc -b
+          mkdir -v dist
+          mv -v ../*.deb ./dist/
+
+      - name: Extract release notes from CHANGELOG.md
+        id: changelog
+        run: |
+          sed -n "/^## \[${{ steps.vars.outputs.version }}\]/,/^## \[/p"  CHANGELOG.md | sed '1d; :a; /^[[:space:]]*$/ {N; ba}; $ { /^[[:space:]]*$/d }' > RELEASE_NOTES.md
+
+          echo "release_notes<<EOF" >> $GITHUB_OUTPUT
+          cat RELEASE_NOTES.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: ${{ steps.changelog.outputs.release_notes }}
+          files: dist/*.deb
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
