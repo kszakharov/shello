@@ -11,13 +11,16 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
         python-version:
           - "3.12"
           - "3.13"
           - "3.14"
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
 
