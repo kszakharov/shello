@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "A modern Python library for shell-style process execution"
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+    { name = "Kostiantyn Zakharov", email = "kszakharov@gmail.com" },
+]
 dependencies = []
 
 [project.optional-dependencies]
