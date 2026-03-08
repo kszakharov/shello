@@ -12,8 +12,8 @@ class TestExitCodesGeneric:
         result = process.execute()
 
         assert result.returncode == 7
-        assert result.stdout_data == ""
-        assert result.stderr_data == ""
+        assert result.stdout == ""
+        assert result.stderr == ""
 
     def test_set_acceptable_exit_codes(self):
         """Test set as acceptable exit codes (generic iterable support)."""
@@ -21,8 +21,8 @@ class TestExitCodesGeneric:
         result = process.execute()
 
         assert result.returncode == 3
-        assert result.stdout_data == ""
-        assert result.stderr_data == ""
+        assert result.stdout == ""
+        assert result.stderr == ""
 
     def test_int_to_tuple_conversion(self):
         """Test that single int gets converted to tuple internally."""
@@ -30,7 +30,7 @@ class TestExitCodesGeneric:
         result = process.execute()
 
         assert result.returncode == 1
-        assert result.stdout_data == ""
-        assert result.stderr_data == ""
+        assert result.stdout == ""
+        assert result.stderr == ""
         # Verify internal conversion happened
         assert process.ok_exitcodes == (1,)

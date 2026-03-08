@@ -18,18 +18,18 @@ from shello import shell
 
 # Basic command execution
 result = shell.echo("Hello, World!").execute()
-print(result.stdout_data)  # "Hello, World!\n"
+print(result.stdout)  # "Hello, World!\n"
 
 # Command with arguments
 result = shell.ls("-la", "/tmp").execute()
 
 # Pipelines
 result = (shell.echo("one two three") | shell.wc("-w")).execute()
-print(result.stdout_data)  # "3\n"
+print(result.stdout)  # "3\n"
 
 # With stdin
 result = shell.wc("-c", stdin="Hello World").execute()
-print(result.stdout_data)  # "11\n"
+print(result.stdout)  # "11\n"
 
 # Environment variables
 result = shell.env("CUSTOM_VAR=value").execute()
@@ -99,8 +99,8 @@ Process(program, *args,
 - `wait() -> int`: Wait for process completion and return exit code
 - `kill(signal=15) -> None`: Send signal to process
 - `pid -> int | None`: Get process ID
-- `stdout_data -> str`: Get captured stdout
-- `stderr_data -> str`: Get captured stderr
+- `stdout -> str`: Get captured stdout
+- `stderr -> str`: Get captured stderr
 - `returncode -> int`: Get process return code
 
 #### Pipeline Operator

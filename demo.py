@@ -7,7 +7,7 @@ import logging
 import os
 
 from shello import STDOUT, Pipeline, Process, TimeoutError, shell
-from shello.exceptions import ProcessError, TimeoutError, UnexpectedExitCodeError
+from shello.exceptions import ProcessError, UnexpectedExitCodeError
 
 debug = os.environ.get("DEBUG")
 logging.basicConfig(
@@ -31,15 +31,15 @@ def run_example(process: Process | Pipeline) -> None:
     except (ProcessError, TimeoutError, UnexpectedExitCodeError):
         pass
 
-    std_output = process.stdout_data.strip()
+    std_output = process.stdout.strip()
     if "\n" in std_output:
         std_output = "\n\t".join(std_output.splitlines())
         print(f"   Output:\n\t{std_output}")
     else:
         print(f"   Output: {std_output}")
 
-    if process.stderr_data:
-        stderr_data = process.stderr_data.strip()
+    if process.stderr:
+        stderr_data = process.stderr.strip()
         if "\n" in stderr_data:
             stderr_data = "\n\t".join(stderr_data.splitlines())
             print(f"   Error Output:\n\t{stderr_data}")

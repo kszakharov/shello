@@ -90,9 +90,9 @@ class Process:
         """
         self.program = program
         self.args = list(args)
-        self.stdin = stdin
-        self.stdout = stdout
-        self.stderr = stderr
+        self._stdin_source = stdin
+        self._stdout_destination = stdout
+        self._stderr_destination = stderr
         self.cwd = cwd
         self.env = env
         self.check = check
@@ -530,7 +530,7 @@ class Process:
         return self._process.returncode if self._process else -1
 
     @property
-    def stdout_data(self) -> str | bytes:
+    def stdout(self) -> str | bytes:
         """Get captured stdout."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
@@ -538,13 +538,18 @@ class Process:
         return self._stdout_data or ""
 
     @property
-    def stderr_data(self) -> str | bytes:
+    def stderr(self) -> str | bytes:
         """Get captured stderr."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
         # self._check_exception()
 
         return self._stderr_data or ""
+
+    @property
+    def stdin(self) -> Any:
+        """Get stdin source."""
+        return self._stdin_source
 
     @property
     def execution_time(self) -> float | None:
@@ -567,17 +572,17 @@ class Process:
             redirects.append(f"< {self.stdin}")
 
         # stdout redirection
-        if isinstance(self.stdout, (str, Path)):
-            redirects.append(f"> {self.stdout}")
-        elif self.stdout is DEVNULL:
+        if isinstance(self._stdout_destination, (str, Path)):
+            redirects.append(f"> {self._stdout_destination}")
+        elif self._stdout_destination is DEVNULL:
             redirects.append("> /dev/null")
 
         # stderr redirection
-        if self.stderr is STDOUT:
+        if self._stderr_destination is STDOUT:
             redirects.append("2>&1")
-        elif isinstance(self.stderr, (str, Path)):
-            redirects.append(f"2> {self.stderr}")
-        elif self.stderr is DEVNULL:
+        elif isinstance(self._stderr_destination, (str, Path)):
+            redirects.append(f"2> {self._stderr_destination}")
+        elif self._stderr_destination is DEVNULL:
             redirects.append("2> /dev/null")
 
         # Combine command with redirections
@@ -616,42 +621,34 @@ class Process:
 
     def _get_stdout_handle(self) -> int | IO | None:
         """Get stdout handle for subprocess."""
-        if self.stdout in (None, subprocess.PIPE):
+        if self._stdout_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
-        elif self.stdout is DEVNULL:
+        elif self._stdout_destination is DEVNULL:
             return subprocess.DEVNULL
-        elif isinstance(self.stdout, int):
-            check_fd(self.stdout, "w")
-            return self.stdout
-        elif isinstance(self.stdout, Path):
-            handle = open(self.stdout, "wb")
+        elif isinstance(self._stdout_destination, int):
+            check_fd(self._stdout_destination, "w")
+            return self._stdout_destination
+        elif isinstance(self._stdout_destination, Path):
+            handle = open(self._stdout_destination, "wb")
             self._opened_handles.append(handle)
             return handle
 
-        raise InvalidArgument(f"Invalid stdout value: {self.stdout!r}")
+        raise InvalidArgument(f"Invalid stdout value: {self._stdout_destination!r}")
 
     def _get_stderr_handle(self) -> int | IO | None:
         """Get stderr handle for subprocess."""
-        if self.stderr in (None, subprocess.PIPE):
+        if self._stderr_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
-        elif self.stderr is subprocess.STDOUT:
+        elif self._stderr_destination is subprocess.STDOUT:
             return subprocess.STDOUT
-        elif self.stderr is subprocess.DEVNULL:
+        elif self._stderr_destination is subprocess.DEVNULL:
             return subprocess.DEVNULL
-        elif isinstance(self.stderr, int):
-            check_fd(self.stderr, "w")
-            return self.stderr
-        elif isinstance(self.stderr, Path):
-            handle = open(self.stderr, "wb")
+        elif isinstance(self._stderr_destination, int):
+            check_fd(self._stderr_destination, "w")
+            return self._stderr_destination
+        elif isinstance(self._stderr_destination, Path):
+            handle = open(self._stderr_destination, "wb")
             self._opened_handles.append(handle)
             return handle
 
-        raise InvalidArgument(f"Invalid stderr value: {self.stderr!r}")
-
-    def _prepare_stdin_input(self) -> str | None:
-        """Prepare input for stdin."""
-        if isinstance(self.stdin, str):
-            return self.stdin
-        elif isinstance(self.stdin, bytes):
-            return self.stdin.decode() if self.text else None
-        return None
+        raise InvalidArgument(f"Invalid stderr value: {self._stderr_destination!r}")

@@ -106,28 +106,28 @@ class Pipeline:
             InvalidOperation: If process has invalid configuration for pipeline.
         """
         if not first:
-            if process.stdin not in (None, subprocess.PIPE):
+            if process._stdin_source not in (None, subprocess.PIPE):
                 raise InvalidOperation("Process stdin already configured")
 
-        if process.stdout not in (None, subprocess.PIPE):
+        if process._stdout_destination not in (None, subprocess.PIPE):
             raise InvalidOperation("Process stdout already configured")
 
         if process.is_started:
             raise InvalidOperation("Process has already been executed")
 
     @property
-    def stdout_data(self) -> str | bytes:
+    def stdout(self) -> str | bytes:
         """Get captured stdout."""
         if not self.is_done:
             raise InvalidOperation("Pipeline not fully executed")
-        return self.processes[-1].stdout_data
+        return self.processes[-1].stdout
 
     @property
-    def stderr_data(self) -> str | bytes:
+    def stderr(self) -> str | bytes:
         """Get captured stderr."""
         if not self.is_done:
             raise InvalidOperation("Pipeline not fully executed")
-        return self.processes[-1].stderr_data
+        return self.processes[-1].stderr
 
     @property
     def returncode(self) -> int:
@@ -172,9 +172,9 @@ class Pipeline:
         for process in self.processes:
             process._wait = False
             process.capture_stdout = False if process is not self.processes[-1] else process.capture_stdout
-            process.stdin = prev_stdout if process is not self.processes[0] else process.stdin
+            process._stdin_source = prev_stdout if process is not self.processes[0] else process._stdin_source
             process.check = False if process is not self.processes[-1] else process.check
-            process.stdout = subprocess.PIPE
+            process._stdout_destination = subprocess.PIPE
 
             process.execute()
 

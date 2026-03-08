@@ -6,7 +6,7 @@ import time
 import pytest
 
 from shello import DEVNULL, STDOUT, Process
-from shello.exceptions import InvalidArgument, InvalidOperation, ProcessError, TimeoutError
+from shello.exceptions import InvalidOperation, ProcessError, TimeoutError
 from shello.process import ProcessState
 
 
@@ -19,8 +19,8 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.decode().strip() == "hello"
-        assert result.stderr_data == ""
+        assert result.stdout.decode().strip() == "hello"
+        assert result.stderr == ""
 
     def test_command_with_args(self):
         """Test command with multiple arguments."""
@@ -28,7 +28,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.decode().strip() == "hello world"
+        assert result.stdout.decode().strip() == "hello world"
 
     def test_command_not_found(self):
         """Test handling of non-existent command."""
@@ -43,8 +43,8 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 1
-        assert result.stdout_data == ""
-        assert result.stderr_data == ""
+        assert result.stdout == ""
+        assert result.stderr == ""
 
     def test_stderr_capture(self):
         """Test stderr capture."""
@@ -53,8 +53,8 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data == ""
-        assert result.stderr_data.decode().strip() == "error message"
+        assert result.stdout == ""
+        assert result.stderr.decode().strip() == "error message"
 
     def test_stdin_string(self):
         """Test stdin with string input."""
@@ -63,7 +63,7 @@ class TestProcess:
 
         assert result.returncode == 0
         # "hello world" has 11 characters
-        assert "11" in result.stdout_data.decode()
+        assert "11" in result.stdout.decode()
 
     def test_devnull_stdin(self):
         """Test DEVNULL stdin (default)."""
@@ -80,7 +80,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data == ""
+        assert result.stdout == ""
 
     def test_stderr_to_stdout(self):
         """Test redirecting stderr to stdout."""
@@ -88,8 +88,8 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert "error" in result.stdout_data.decode()
-        assert result.stderr_data == ""
+        assert "error" in result.stdout.decode()
+        assert result.stderr == ""
 
     def test_process_attributes(self):
         """Test process attributes and methods."""
@@ -130,18 +130,18 @@ class TestProcess:
         with pytest.raises(InvalidOperation):
             process.wait()
 
-    def test_stdout_data_before_execution(self):
-        """Test accessing stdout_data before execution raises error."""
+    def test_stdout_before_execution(self):
+        """Test accessing stdout before execution raises error."""
         process = Process("echo", "test")
 
         with pytest.raises(InvalidOperation, match="not executed"):
-            _ = process.stdout_data
+            _ = process.stdout
 
     def test_invalid_stdin_type(self):
         """Test invalid stdin type raises error."""
         process = Process("echo", stdin=12345)
 
-        with pytest.raises(ProcessError, match=f"Invalid file descriptor: 12345"):
+        with pytest.raises(ProcessError, match="Invalid file descriptor: 12345"):
             process.execute()
 
     def test_working_directory(self, tmp_path):
@@ -154,7 +154,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert "test.txt" in result.stdout_data.decode()
+        assert "test.txt" in result.stdout.decode()
 
     def test_environment_variables(self):
         """Test setting environment variables."""
@@ -162,7 +162,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.decode().strip() == "test_value"
+        assert result.stdout.decode().strip() == "test_value"
 
     def test_timeout_no_timeout(self):
         """Test timeout parameter when process completes within timeout."""
@@ -170,7 +170,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout_data.decode().strip() == "hello"
+        assert result.stdout.decode().strip() == "hello"
 
     def test_timeout_exceeded(self):
         """Test timeout when process exceeds timeout limit."""
@@ -182,8 +182,8 @@ class TestProcess:
         # Process should be terminated
         assert process.state == ProcessState.TERMINATED
         # Output should be empty for sleep command
-        assert process.stdout_data == ""
-        assert process.stderr_data == ""
+        assert process.stdout == ""
+        assert process.stderr == ""
 
     def test_timeout_none(self):
         """Test that timeout=None means no timeout (default behavior)."""
@@ -213,7 +213,7 @@ class TestProcess:
         with pytest.raises(TimeoutError):
             process.execute()
         # In current implementation, output is empty on timeout
-        assert process.stdout_data == ""
+        assert process.stdout == ""
 
     def test_custom_exit_codes_timeout(self):
         """Test that timeout takes precedence over custom exit codes."""
@@ -244,8 +244,8 @@ def test_binary_mode():
 
     assert result.returncode == 0
     # In binary mode, check that hello appears in output
-    output = result.stdout_data
-    # In binary mode, stdout_data may be bytes or str depending on implementation
+    output = result.stdout
+    # In binary mode, stdout may be bytes or str depending on implementation
     if type(output) is bytes:
         assert b"hello" in output
     else:
@@ -258,10 +258,10 @@ def test_binary_mode():
         result = large_process.execute()
 
         # Output should be truncated
-        assert len(result.stdout_data()) <= 1100  # 1000 + truncation message
-        assert "[OUTPUT TRUNCATED]" in result.stdout_data()
+        assert len(result.stdout()) <= 1100  # 1000 + truncation message
+        assert "[OUTPUT TRUNCATED]" in result.stdout()
 
         # Small output should not be truncated
         small_process = Process("echo", "hello", max_output_size=1000)
         small_result = small_process.execute()
-        assert small_result.stdout_data() == "hello\n"
+        assert small_result.stdout() == "hello\n"
