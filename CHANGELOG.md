@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-03-08
+
+### Added
+
+- Support for Python 3.10 and 3.11
+
+### Changed
+
+- CI: Update `actions/checkout` to v6
+- Rename properties `stdout_data` and `stderr_data` to `stdout` and `stderr`
+
 ## [0.1.0] - 2026-03-08
 
 ### Added
