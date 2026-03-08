@@ -11,7 +11,10 @@ from enum import Enum
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
 from threading import Thread
-from typing import IO, Any, AnyStr, BinaryIO, Self, TextIO, cast
+from typing import IO, TYPE_CHECKING, Any, AnyStr, BinaryIO, TextIO, cast
+
+if TYPE_CHECKING:
+    from typing import Self
 
 from .decorators import run_once, with_callback
 from .exceptions import InvalidArgument, InvalidOperation, ProcessError, TimeoutError, UnexpectedExitCodeError

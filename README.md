@@ -7,7 +7,7 @@ A modern Python library for shell-style process execution with elegant syntax an
 - **Shell-like syntax**: `shell.echo("hello")` instead of complex subprocess calls
 - **Pipeline support**: `shell.echo("hello") | shell.wc("-w")` for Unix-style pipes
 - **I/O redirection**: Support for stdin/stdout/stderr redirection with `DEVNULL`, `STDOUT`, `STDERR`
-- **Modern Python**: Built with Python 3.11+ features and type hints
+- **Modern Python**: Built with Python 3.10+ features and type hints
 - **Comprehensive error handling**: Clear exceptions with detailed error information
 - **Flexible configuration**: Environment variables, working directory, and more
 
