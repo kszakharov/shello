@@ -62,7 +62,11 @@ jobs:
       - name: Extract release notes from CHANGELOG.md
         id: changelog
         run: |
-          sed -n "/^## \[${{ steps.vars.outputs.version }}\]/,/^## \[/p"  CHANGELOG.md | sed '1d; :a; /^[[:space:]]*$/ {N; ba}; $ { /^[[:space:]]*$/d }' > RELEASE_NOTES.md
+          sed -n "/^## \[${{ steps.vars.outputs.version }}\]/,/^## \[/{
+            /^## \[${{ steps.vars.outputs.version }}\]/d                 # remove the version header
+            /^## \[/q                                                    # stop at next header
+            p                                                            # print everything else
+          }" CHANGELOG.md | sed '/./,$!d;${/^$/d}' > RELEASE_NOTES.md
 
           echo "release_notes<<EOF" >> $GITHUB_OUTPUT
           cat RELEASE_NOTES.md >> $GITHUB_OUTPUT
