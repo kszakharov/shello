@@ -1,4 +1,4 @@
-# Shello
+# Shello [![Tests](https://github.com/kszakharov/shello/actions/workflows/ci.yml/badge.svg)](https://github.com/kszakharov/shello/actions/workflows/ci.yml) [![Version](https://img.shields.io/pypi/v/shello)](https://pypi.org/project/shello) [![Python Version](https://img.shields.io/pypi/pyversions/shello.svg)](https://pypi.org/project/shello)
 
 A modern Python library for shell-style process execution with elegant syntax and powerful features.
 
