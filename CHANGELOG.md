@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreliased]
+
+### Added
+
+- Support for Python 3.15
+
 ## [0.2.0] - 2026-03-08
 
 ### Added
