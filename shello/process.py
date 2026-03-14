@@ -95,7 +95,7 @@ class Process(Generic[AnyStr]):
         self,
         program: str,
         *args: str,
-        stdin: AnyStr | FileDescriptorLike | Path | None = None,
+        stdin: str | bytes | FileDescriptorLike | Path | None = None,
         stdout: FileDescriptorLike | Path | None = None,
         stderr: FileDescriptorLike | Path | None = None,
         cwd: str | Path | None = None,
@@ -134,7 +134,7 @@ class Process(Generic[AnyStr]):
         """
         self.program = program
         self.args = list(args)
-        self._stdin_source: AnyStr | FileDescriptorLike | Path | None = stdin
+        self._stdin_source = stdin
         self._stdout_destination = stdout
         self._stderr_destination = stderr
         self.cwd = cwd
@@ -152,8 +152,10 @@ class Process(Generic[AnyStr]):
 
         # Runtime state
         self._process: subprocess.Popen | None = None
-        self._stdout_data: AnyStr | None = None
-        self._stderr_data: AnyStr | None = None
+        # self._stdout_data: AnyStr = cast(AnyStr, "" if self.text else b"")
+        # self._stderr_data: AnyStr = cast(AnyStr, "" if self.text else b"")
+        self._stdout_data: str | bytes = "" if self.text else b""
+        self._stderr_data: str | bytes = "" if self.text else b""
         self._threads: list[Thread] = []
         self._state: ProcessState = ProcessState.PENDING
         self.start_time: float | None = None
@@ -313,7 +315,7 @@ class Process(Generic[AnyStr]):
                 stdout_chunks.append(line)
                 display = line.decode(errors="replace") if isinstance(line, bytes) else line
                 print(f"{self.program} [stdout]: {display}", end="")
-            self._stdout_data = (b"" if not self.text else "").join(stdout_chunks)
+            self._stdout_data = ("" if self.text else b"").join(stdout_chunks)
 
         elif self.capture_stdout:
             self._stdout_data = self._process.stdout.read()
@@ -344,7 +346,7 @@ class Process(Generic[AnyStr]):
                 stderr_chunks.append(line)
                 display = line.decode(errors="replace") if isinstance(line, bytes) else line
                 print(f"{self.program} [stderr]: {display}", end="")
-            self._stderr_data = (b"" if not self.text else "").join(stderr_chunks)
+            self._stderr_data = ("" if self.text else b"").join(stderr_chunks)
 
         elif self.capture_stderr:
             self._stderr_data = self._process.stderr.read()
@@ -578,21 +580,21 @@ class Process(Generic[AnyStr]):
         return self._process.returncode if self._process else -1
 
     @property
-    def stdout(self) -> AnyStr:
+    def stdout(self) -> str | bytes:
         """Get captured stdout."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
-        return self._stdout_data if self._stdout_data is not None else cast(AnyStr, b"" if not self.text else "")
+        return self._stdout_data
 
     @property
-    def stderr(self) -> AnyStr:
+    def stderr(self) -> str | bytes:
         """Get captured stderr."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
-        return self._stderr_data if self._stderr_data is not None else cast(AnyStr, b"" if not self.text else "")
+        return self._stderr_data
 
     @property
-    def stdin(self) -> AnyStr | FileDescriptorLike | Path | None:
+    def stdin(self) -> str | bytes | FileDescriptorLike | Path | None:
         """Get stdin source."""
         return self._stdin_source
 
