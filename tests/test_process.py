@@ -20,7 +20,7 @@ class TestProcess:
 
         assert result.returncode == 0
         assert result.stdout.decode().strip() == "hello"
-        assert result.stderr == ""
+        assert result.stderr == b""
 
     def test_command_with_args(self):
         """Test command with multiple arguments."""
@@ -43,8 +43,8 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 1
-        assert result.stdout == ""
-        assert result.stderr == ""
+        assert result.stdout == b""
+        assert result.stderr == b""
 
     def test_stderr_capture(self):
         """Test stderr capture."""
@@ -53,7 +53,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout == ""
+        assert result.stdout == b""
         assert result.stderr.decode().strip() == "error message"
 
     def test_stdin_string(self):
@@ -80,7 +80,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
-        assert result.stdout == ""
+        assert result.stdout == b""
 
     def test_stderr_to_stdout(self):
         """Test redirecting stderr to stdout."""
@@ -89,7 +89,7 @@ class TestProcess:
 
         assert result.returncode == 0
         assert "error" in result.stdout.decode()
-        assert result.stderr == ""
+        assert result.stderr == b""
 
     def test_process_attributes(self):
         """Test process attributes and methods."""
@@ -182,8 +182,8 @@ class TestProcess:
         # Process should be terminated
         assert process.state == ProcessState.TERMINATED
         # Output should be empty for sleep command
-        assert process.stdout == ""
-        assert process.stderr == ""
+        assert process.stdout == b""
+        assert process.stderr == b""
 
     def test_timeout_none(self):
         """Test that timeout=None means no timeout (default behavior)."""
@@ -213,7 +213,7 @@ class TestProcess:
         with pytest.raises(TimeoutError):
             process.execute()
         # In current implementation, output is empty on timeout
-        assert process.stdout == ""
+        assert process.stdout == b""
 
     def test_custom_exit_codes_timeout(self):
         """Test that timeout takes precedence over custom exit codes."""
@@ -243,25 +243,127 @@ def test_binary_mode():
     result = process.execute()
 
     assert result.returncode == 0
-    # In binary mode, check that hello appears in output
-    output = result.stdout
-    # In binary mode, stdout may be bytes or str depending on implementation
-    if type(output) is bytes:
-        assert b"hello" in output
-    else:
-        assert "hello" in output
+    assert isinstance(result.stdout, bytes)
+    assert b"hello" in result.stdout
 
-    def test_output_truncation(self):
-        """Test output size limit and truncation."""
-        # Create a process that generates large output
-        large_process = Process("python3", "-c", "print('x' * 10000)", max_output_size=1000)
-        result = large_process.execute()
 
-        # Output should be truncated
-        assert len(result.stdout()) <= 1100  # 1000 + truncation message
-        assert "[OUTPUT TRUNCATED]" in result.stdout()
+def test_text_mode_stdout_is_str():
+    """Test that text=True yields str stdout at runtime."""
+    process = Process("echo", "hello", text=True)
+    result = process.execute()
 
-        # Small output should not be truncated
-        small_process = Process("echo", "hello", max_output_size=1000)
-        small_result = small_process.execute()
-        assert small_result.stdout() == "hello\n"
+    assert result.returncode == 0
+    assert isinstance(result.stdout, str), f"Expected str, got {type(result.stdout)}"
+    assert "hello" in result.stdout
+
+
+def test_text_mode_stderr_is_str():
+    """Test that text=True yields str stderr at runtime."""
+    process = Process("sh", "-c", "echo err >&2", text=True)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stderr, str), f"Expected str, got {type(result.stderr)}"
+    assert "err" in result.stderr
+
+
+def test_binary_mode_stdout_is_bytes():
+    """Test that text=False (default) yields bytes stdout at runtime."""
+    process = Process("echo", "hello", text=False)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stdout, bytes), f"Expected bytes, got {type(result.stdout)}"
+    assert b"hello" in result.stdout
+
+
+def test_binary_mode_stderr_is_bytes():
+    """Test that text=False (default) yields bytes stderr at runtime."""
+    process = Process("sh", "-c", "echo err >&2", text=False)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stderr, bytes), f"Expected bytes, got {type(result.stderr)}"
+    assert b"err" in result.stderr
+
+
+def test_binary_mode_capture_and_print_stdout():
+    """Test bytes mode with capture_stdout+print_stdout uses bytes join (not str join)."""
+    process = Process("echo", "hello", text=False, capture_stdout=True, print_stdout=True)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stdout, bytes), f"Expected bytes, got {type(result.stdout)}"
+    assert b"hello" in result.stdout
+
+
+def test_binary_mode_capture_and_print_stderr():
+    """Test bytes mode with capture_stderr+print_stderr uses bytes join (not str join)."""
+    process = Process("sh", "-c", "echo err >&2", text=False, capture_stderr=True, print_stderr=True)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stderr, bytes), f"Expected bytes, got {type(result.stderr)}"
+    assert b"err" in result.stderr
+
+
+def test_text_mode_stdout_is_str_when_no_output():
+    """Test that stdout fallback is str in text mode when no output is captured."""
+    process = Process("true", text=True, capture_stdout=False)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stdout, str), f"Expected str fallback, got {type(result.stdout)}"
+    assert result.stdout == ""
+
+
+def test_binary_mode_stdout_is_bytes_when_no_output():
+    """Test that stdout fallback is bytes in binary mode when no output is captured."""
+    process = Process("true", text=False, capture_stdout=False)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stdout, bytes), f"Expected bytes fallback, got {type(result.stdout)}"
+    assert result.stdout == b""
+
+
+def test_text_mode_capture_and_print_stdout():
+    """Test text mode with capture_stdout+print_stdout uses str join (not bytes join)."""
+    process = Process("echo", "hello", text=True, capture_stdout=True, print_stdout=True)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stdout, str), f"Expected str, got {type(result.stdout)}"
+    assert "hello" in result.stdout
+
+
+def test_text_mode_capture_and_print_stderr():
+    """Test text mode with capture_stderr+print_stderr uses str join (not bytes join)."""
+    process = Process("sh", "-c", "echo err >&2", text=True, capture_stderr=True, print_stderr=True)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stderr, str), f"Expected str, got {type(result.stderr)}"
+    assert "err" in result.stderr
+
+
+def test_text_mode_stderr_is_str_when_no_output():
+    """Test that stderr fallback is str in text mode when stderr is not captured."""
+    process = Process("true", text=True, capture_stderr=False)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stderr, str), f"Expected str fallback, got {type(result.stderr)}"
+    assert result.stderr == ""
+
+
+def test_binary_mode_stderr_is_bytes_when_no_output():
+    """Test that stderr fallback is bytes in binary mode when stderr is not captured."""
+    process = Process("true", text=False, capture_stderr=False)
+    result = process.execute()
+
+    assert result.returncode == 0
+    assert isinstance(result.stderr, bytes), f"Expected bytes fallback, got {type(result.stderr)}"
+    assert result.stderr == b""
+
+

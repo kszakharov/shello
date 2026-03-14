@@ -68,6 +68,22 @@ process1 = shell("echo", "hello")
 process2 = shell.echo("hello")  # Attribute access (underscores -> hyphens)
 ```
 
+### Convenience Objects
+
+Two module-level `Shell` instances are provided for quick use:
+
+```python
+from shello import shell, binary_shell
+
+# shell: text=True — .stdout/.stderr return str
+result = shell.echo("hello").execute()
+print(result.stdout)  # "hello\n"
+
+# binary_shell: text=False — .stdout/.stderr return bytes
+result = binary_shell.echo("hello").execute()
+print(result.stdout)  # b"hello\n"
+```
+
 ### Process Class
 
 Represents a process that can be executed.
@@ -76,21 +92,23 @@ Represents a process that can be executed.
 
 ```python
 Process(program, *args,
-       stdin=DEVNULL, stdout=None, stderr=None,
-       cwd=None, env=None, check=True, ok_exitcodes=0, text=True, **kwargs)
+       stdin=None, stdout=None, stderr=None,
+       cwd=None, env=None, check=True, ok_exitcodes=0, text=False, **kwargs)
 ```
+
+`Process` is generic over `AnyStr`: use `text=True` to get a `Process[str]` where `.stdout`/`.stderr` return `str`, or `text=False` (default) to get a `Process[bytes]` where they return `bytes`. The module-level `shell` convenience object defaults to `text=True`.
 
 **Parameters:**
 - `program`: Command to execute
 - `*args`: Command line arguments
-- `stdin`: Input source (`DEVNULL`, string, bytes, file-like object)
-- `stdout`: Output destination (`None`, `DEVNULL`, `STDOUT`, `STDERR`, file path, file object)
+- `stdin`: Input source (string, bytes, file-like object, or `Path`)
+- `stdout`: Output destination (`None`, `DEVNULL`, `STDOUT`, file path, file object)
 - `stderr`: Error output destination (same options as stdout)
 - `cwd`: Working directory
 - `env`: Environment variables dict
 - `check`: Raise exception on unacceptable exit (default: `True`)
 - `ok_exitcodes`: Acceptable exit codes (default: `0`, use `ANY_EXITCODE` for any) - can be int or container
-- `text`: Text mode for I/O (default: `True`)
+- `text`: Text mode for I/O; `True` → `Process[str]`, `False` (default) → `Process[bytes]`
 - `**kwargs`: Additional subprocess arguments
 
 #### Methods
@@ -99,8 +117,8 @@ Process(program, *args,
 - `wait() -> int`: Wait for process completion and return exit code
 - `kill(signal=15) -> None`: Send signal to process
 - `pid -> int | None`: Get process ID
-- `stdout -> str`: Get captured stdout
-- `stderr -> str`: Get captured stderr
+- `stdout -> str | bytes`: Get captured stdout (`str` when `text=True`, `bytes` when `text=False`)
+- `stderr -> str | bytes`: Get captured stderr (`str` when `text=True`, `bytes` when `text=False`)
 - `returncode -> int`: Get process return code
 
 #### Pipeline Operator

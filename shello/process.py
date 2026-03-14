@@ -11,7 +11,7 @@ from enum import Enum
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
 from threading import Thread
-from typing import IO, TYPE_CHECKING, Any, AnyStr, BinaryIO, TextIO, cast
+from typing import IO, TYPE_CHECKING, Any, AnyStr, BinaryIO, Generic, Literal, TextIO, cast, overload
 
 if TYPE_CHECKING:
     from typing import Self
@@ -42,10 +42,54 @@ class ProcessState(Enum):
     TERMINATED = 3  # Process finished, cleaned up
 
 
-class Process:
+class Process(Generic[AnyStr]):
     """Represents a process that can be executed."""
 
     KILL_GRACE_PERIOD: float = 10.0
+
+    @overload
+    def __init__(
+        self: Process[str],
+        program: str,
+        *args: str,
+        stdin: str | FileDescriptorLike | Path | None = ...,
+        stdout: FileDescriptorLike | Path | None = ...,
+        stderr: FileDescriptorLike | Path | None = ...,
+        cwd: str | Path | None = ...,
+        env: dict[str, str] | None = ...,
+        check: bool = ...,
+        ok_exitcodes: Container[int] | int = ...,
+        text: Literal[True],
+        timeout: float | None = ...,
+        capture_stdout: bool = ...,
+        capture_stderr: bool = ...,
+        print_stdout: bool = ...,
+        print_stderr: bool = ...,
+        wait: bool = ...,
+        **kwargs: Any,
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Process[bytes],
+        program: str,
+        *args: str,
+        stdin: bytes | FileDescriptorLike | Path | None = ...,
+        stdout: FileDescriptorLike | Path | None = ...,
+        stderr: FileDescriptorLike | Path | None = ...,
+        cwd: str | Path | None = ...,
+        env: dict[str, str] | None = ...,
+        check: bool = ...,
+        ok_exitcodes: Container[int] | int = ...,
+        text: bool = ...,
+        timeout: float | None = ...,
+        capture_stdout: bool = ...,
+        capture_stderr: bool = ...,
+        print_stdout: bool = ...,
+        print_stderr: bool = ...,
+        wait: bool = ...,
+        **kwargs: Any,
+    ) -> None: ...
 
     def __init__(
         self,
@@ -90,7 +134,7 @@ class Process:
         """
         self.program = program
         self.args = list(args)
-        self._stdin_source = stdin
+        self._stdin_source: AnyStr | FileDescriptorLike | Path | None = stdin
         self._stdout_destination = stdout
         self._stderr_destination = stderr
         self.cwd = cwd
@@ -108,8 +152,8 @@ class Process:
 
         # Runtime state
         self._process: subprocess.Popen | None = None
-        self._stdout_data: str | bytes | None = None
-        self._stderr_data: str | bytes | None = None
+        self._stdout_data: AnyStr | None = None
+        self._stderr_data: AnyStr | None = None
         self._threads: list[Thread] = []
         self._state: ProcessState = ProcessState.PENDING
         self.start_time: float | None = None
@@ -267,15 +311,17 @@ class Process:
             stdout_chunks = []
             for line in self._process.stdout:
                 stdout_chunks.append(line)
-                print(f"{self.program} [stdout]: {line}", end="")
-            self._stdout_data = "".join(stdout_chunks)
+                display = line.decode(errors="replace") if isinstance(line, bytes) else line
+                print(f"{self.program} [stdout]: {display}", end="")
+            self._stdout_data = (b"" if not self.text else "").join(stdout_chunks)
 
         elif self.capture_stdout:
             self._stdout_data = self._process.stdout.read()
 
         elif self.print_stdout:
             for line in self._process.stdout:
-                print(f"{self.program} [stdout]: {line}", end="")
+                display = line.decode(errors="replace") if isinstance(line, bytes) else line
+                print(f"{self.program} [stdout]: {display}", end="")
 
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
@@ -296,15 +342,17 @@ class Process:
             stderr_chunks = []
             for line in self._process.stderr:
                 stderr_chunks.append(line)
-                print(f"{self.program} [stderr]: {line}", end="")
-            self._stderr_data = "".join(stderr_chunks)
+                display = line.decode(errors="replace") if isinstance(line, bytes) else line
+                print(f"{self.program} [stderr]: {display}", end="")
+            self._stderr_data = (b"" if not self.text else "").join(stderr_chunks)
 
         elif self.capture_stderr:
             self._stderr_data = self._process.stderr.read()
 
         elif self.print_stderr:
             for line in self._process.stderr:
-                print(f"{self.program} [stderr]: {line}", end="")
+                display = line.decode(errors="replace") if isinstance(line, bytes) else line
+                print(f"{self.program} [stderr]: {display}", end="")
 
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
@@ -381,7 +429,7 @@ class Process:
         thread_name = thread.name
         thread_id = thread.ident
         with self._threads_done_lock:
-            if thread_id in self._threads_done_set:
+            if thread in self._threads_done_set:
                 # Thread should be done once
                 raise RuntimeError(
                     f"{self.program}: _task_done() called more than once "
@@ -530,24 +578,21 @@ class Process:
         return self._process.returncode if self._process else -1
 
     @property
-    def stdout(self) -> str | bytes:
+    def stdout(self) -> AnyStr:
         """Get captured stdout."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
-        # self._check_exception()
-        return self._stdout_data or ""
+        return self._stdout_data if self._stdout_data is not None else cast(AnyStr, b"" if not self.text else "")
 
     @property
-    def stderr(self) -> str | bytes:
+    def stderr(self) -> AnyStr:
         """Get captured stderr."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
-        # self._check_exception()
-
-        return self._stderr_data or ""
+        return self._stderr_data if self._stderr_data is not None else cast(AnyStr, b"" if not self.text else "")
 
     @property
-    def stdin(self) -> Any:
+    def stdin(self) -> AnyStr | FileDescriptorLike | Path | None:
         """Get stdin source."""
         return self._stdin_source
 
