@@ -19,6 +19,7 @@ class TestPipeline:
 
         # "hello" + newline = 6 characters
         assert result.returncode == 0
+        assert isinstance(result.stdout, bytes)
         assert "6" in result.stdout.decode()
 
     def test_pipeline_with_shell(self):
@@ -27,6 +28,7 @@ class TestPipeline:
         result = pipeline.execute()
 
         assert result.returncode == 0
+        assert isinstance(result.stdout, str)
         assert "2" in result.stdout  # "hello world" has 2 words
 
     def test_pipeline_stderr_capture(self):
@@ -40,6 +42,7 @@ class TestPipeline:
 
         assert result.returncode == 0
         # wc -c counts characters, "output\n" is 7 characters
+        assert isinstance(result.stdout, bytes)
         assert "7" in result.stdout.decode()
         # Pipeline stderr should contain stderr from first command
         # assert "error" in result.stderr_data  # Not implemented
@@ -50,6 +53,7 @@ class TestPipeline:
         result = pipeline.execute()
 
         assert result.returncode == 0
+        assert isinstance(result.stdout, bytes)
         assert "3" in result.stdout.decode()  # 3 lines
 
     def test_pipeline_with_stdin(self):
@@ -62,7 +66,8 @@ class TestPipeline:
 
         assert result.returncode == 0
         # Should remove spaces from the character count
-        assert "11" in result.stdout.decode() or "9" in result.stdout.decode()
+        assert isinstance(result.stdout, bytes)
+        assert "11" in result.stdout.decode()
 
     def test_pipeline_already_configured_stdout(self):
         """Test that pipeline fails if first process stdout already configured."""
@@ -70,22 +75,22 @@ class TestPipeline:
         second_cmd = Process("wc", "-c")
 
         with pytest.raises(InvalidOperation, match="stdout already configured"):
-            first_cmd | second_cmd
+            _ = first_cmd | second_cmd
 
     def test_pipeline_already_configured_stdin(self):
         """Test that pipeline fails if second process stdin already configured."""
         first_cmd = Process("echo", "hello")
-        second_cmd = Process("wc", "-c", stdin="test")  # Configured stdin
+        second_cmd = Process("wc", "-c", stdin=b"test")  # Configured stdin
 
         with pytest.raises(InvalidOperation, match="stdin already configured"):
-            first_cmd | second_cmd
+            _ = first_cmd | second_cmd
 
     def test_pipeline_with_non_process(self):
         """Test that pipeline fails with non-Process object."""
         process = Process("echo", "hello")
 
         with pytest.raises(TypeError):
-            process | "not a process"
+            _ = process | "not a process"  # type: ignore[operator]
 
     def test_pipeline_execution_order(self):
         """Test that pipeline maintains execution order."""
@@ -97,6 +102,7 @@ class TestPipeline:
         result = pipeline.execute()
 
         assert result.returncode == 0
+        assert isinstance(result.stdout, bytes)
         assert "first" in result.stdout.decode()
 
     def test_pipeline_return_value(self):

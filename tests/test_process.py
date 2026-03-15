@@ -191,6 +191,7 @@ class TestProcess:
         result = process.execute()
 
         assert result.returncode == 0
+        assert result.execution_time is not None
         assert result.execution_time >= 0.1  # Should have waited
 
     def test_pipeline_timeout_source(self):

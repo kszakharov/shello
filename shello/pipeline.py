@@ -181,6 +181,8 @@ class Pipeline:
             if prev_stdout is not None:
                 prev_stdout.close()
 
+            if process._process is None:
+                raise InvalidOperation("Process has no subprocess after execute()")
             prev_stdout = process._process.stdout
 
         if self._wait:

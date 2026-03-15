@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import pytest
 
 from shello import Process
-from shello.exceptions import InvalidOperation
+from shello.exceptions import InvalidOperation, ProcessError
 from shello.process import ProcessState
 
 
@@ -179,10 +179,8 @@ class TestStateMachineLeaks:
         # Test with command that doesn't exist
         process = Process("nonexistent_command_12345")
 
-        try:
+        with pytest.raises(ProcessError):
             process.execute()
-        except Exception:
-            pass  # Expected to fail
 
         # State should be consistent (not corrupted)
         assert process.state is ProcessState.SPAWNING

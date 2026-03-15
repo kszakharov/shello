@@ -152,10 +152,8 @@ class Process(Generic[AnyStr]):
 
         # Runtime state
         self._process: subprocess.Popen | None = None
-        # self._stdout_data: AnyStr = cast(AnyStr, "" if self.text else b"")
-        # self._stderr_data: AnyStr = cast(AnyStr, "" if self.text else b"")
-        self._stdout_data: str | bytes = "" if self.text else b""
-        self._stderr_data: str | bytes = "" if self.text else b""
+        self._stdout_data: AnyStr = cast(AnyStr, "" if self.text else b"")
+        self._stderr_data: AnyStr = cast(AnyStr, "" if self.text else b"")
         self._threads: list[Thread] = []
         self._state: ProcessState = ProcessState.PENDING
         self.start_time: float | None = None
@@ -188,7 +186,7 @@ class Process(Generic[AnyStr]):
 
         return Pipeline(self, other)
 
-    def execute(self) -> Process:
+    def execute(self) -> Self:
         """Execute the process.
 
         Starts the subprocess and begins background monitoring threads.
@@ -239,8 +237,6 @@ class Process(Generic[AnyStr]):
             ) from e
         except InvalidArgument as e:
             raise ProcessError(command=[self.program] + self.args, exit_code=-1, message=str(e)) from e
-        except Exception:
-            raise
         finally:
             self._cleanup_resources()
 
@@ -254,7 +250,7 @@ class Process(Generic[AnyStr]):
         return self
 
     @run_once
-    @with_callback(on_done=lambda self: self._task_done())
+    @with_callback(on_done=lambda self: cast("Process", self)._task_done())
     def _write_stdin(self) -> None:
         """Write stdin data to the process in a background thread.
 
@@ -293,7 +289,7 @@ class Process(Generic[AnyStr]):
                 pass
 
     @run_once
-    @with_callback(on_done=lambda self: self._task_done())
+    @with_callback(on_done=lambda self: cast("Process", self)._task_done())
     def _read_stdout(self):
         """Read stdout from the process in a background thread.
 
@@ -315,7 +311,7 @@ class Process(Generic[AnyStr]):
                 stdout_chunks.append(line)
                 display = line.decode(errors="replace") if isinstance(line, bytes) else line
                 print(f"{self.program} [stdout]: {display}", end="")
-            self._stdout_data = ("" if self.text else b"").join(stdout_chunks)
+            self._stdout_data = cast(AnyStr, ("" if self.text else b"").join(stdout_chunks))
 
         elif self.capture_stdout:
             self._stdout_data = self._process.stdout.read()
@@ -326,7 +322,7 @@ class Process(Generic[AnyStr]):
                 print(f"{self.program} [stdout]: {display}", end="")
 
     @run_once
-    @with_callback(on_done=lambda self: self._task_done())
+    @with_callback(on_done=lambda self: cast("Process", self)._task_done())
     def _read_stderr(self):
         """Read stderr from the process in a background thread.
 
@@ -346,7 +342,7 @@ class Process(Generic[AnyStr]):
                 stderr_chunks.append(line)
                 display = line.decode(errors="replace") if isinstance(line, bytes) else line
                 print(f"{self.program} [stderr]: {display}", end="")
-            self._stderr_data = ("" if self.text else b"").join(stderr_chunks)
+            self._stderr_data = cast(AnyStr, ("" if self.text else b"").join(stderr_chunks))
 
         elif self.capture_stderr:
             self._stderr_data = self._process.stderr.read()
@@ -357,7 +353,7 @@ class Process(Generic[AnyStr]):
                 print(f"{self.program} [stderr]: {display}", end="")
 
     @run_once
-    @with_callback(on_done=lambda self: self._task_done())
+    @with_callback(on_done=lambda self: cast("Process", self)._task_done())
     def _handle_execution(self) -> None:
         """Handle process execution and timeout monitoring in a background thread.
 
@@ -580,18 +576,18 @@ class Process(Generic[AnyStr]):
         return self._process.returncode if self._process else -1
 
     @property
-    def stdout(self) -> str | bytes:
+    def stdout(self) -> AnyStr:
         """Get captured stdout."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
-        return self._stdout_data
+        return cast(AnyStr, self._stdout_data)
 
     @property
-    def stderr(self) -> str | bytes:
+    def stderr(self) -> AnyStr:
         """Get captured stderr."""
         if self.state is not ProcessState.TERMINATED:
             raise InvalidOperation("Process not executed")
-        return self._stderr_data
+        return cast(AnyStr, self._stderr_data)
 
     @property
     def stdin(self) -> str | bytes | FileDescriptorLike | Path | None:

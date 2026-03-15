@@ -32,6 +32,8 @@ def run_example(process: Process | Pipeline) -> None:
         pass
 
     std_output = process.stdout.strip()
+    if isinstance(std_output, bytes):
+        std_output = std_output.decode()
     if "\n" in std_output:
         std_output = "\n\t".join(std_output.splitlines())
         print(f"   Output:\n\t{std_output}")
@@ -40,6 +42,8 @@ def run_example(process: Process | Pipeline) -> None:
 
     if process.stderr:
         stderr_data = process.stderr.strip()
+        if isinstance(stderr_data, bytes):
+            stderr_data = stderr_data.decode()
         if "\n" in stderr_data:
             stderr_data = "\n\t".join(stderr_data.splitlines())
             print(f"   Error Output:\n\t{stderr_data}")
