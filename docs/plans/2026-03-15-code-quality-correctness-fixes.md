@@ -38,10 +38,10 @@ SupportsFileno is never imported or used anywhere. HasFileno is the one actually
 **Files:**
 - Modify: `shello/types.py`
 
-- [ ] Read types.py to confirm SupportsFileno is defined and unused
-- [ ] Grep codebase for any import of SupportsFileno to confirm it is truly unused
-- [ ] Delete the SupportsFileno class definition
-- [ ] Run project test suite - must pass before task 3
+- [x] Read types.py to confirm SupportsFileno is defined and unused
+- [x] Grep codebase for any import of SupportsFileno to confirm it is truly unused
+- [x] Delete the SupportsFileno class definition
+- [x] Run project test suite - must pass before task 3
 
 ### Task 3: Fix double-period docstring in exceptions.py
 
