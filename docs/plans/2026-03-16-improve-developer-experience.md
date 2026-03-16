@@ -60,10 +60,10 @@ Several public API paths and exception types have zero test coverage:
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] manual test: `python -c "from shello import InvalidOperation, UnexpectedExitCodeError; print('exports ok')"`
-- [ ] run full test suite: `uv run pytest`
-- [ ] run linter: `uv run pyright`
-- [ ] verify test coverage meets 80%+: `uv run pytest --cov`
+- [x] manual test: `python -c "from shello import InvalidOperation, UnexpectedExitCodeError; print('exports ok')"`
+- [x] run full test suite: `uv run pytest`
+- [x] run linter: `uv run pyright`
+- [x] verify test coverage meets 80%+: `uv run pytest --cov`
 
 ### Task 5: Update documentation
 
