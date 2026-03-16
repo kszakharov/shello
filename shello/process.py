@@ -63,7 +63,7 @@ class Process(Generic[AnyStr]):
         program: str,
         *args: str,
         stdin: str | FileDescriptorLike | Path | None = ...,
-        stdout: FileDescriptorLike | Path | None = ...,
+        stdout: FileDescriptorLike | Path | _STDERR_TYPE | None = ...,
         stderr: FileDescriptorLike | Path | None = ...,
         cwd: str | Path | None = ...,
         env: dict[str, str] | None = ...,
@@ -85,7 +85,7 @@ class Process(Generic[AnyStr]):
         program: str,
         *args: str,
         stdin: bytes | FileDescriptorLike | Path | None = ...,
-        stdout: FileDescriptorLike | Path | None = ...,
+        stdout: FileDescriptorLike | Path | _STDERR_TYPE | None = ...,
         stderr: FileDescriptorLike | Path | None = ...,
         cwd: str | Path | None = ...,
         env: dict[str, str] | None = ...,
@@ -106,7 +106,7 @@ class Process(Generic[AnyStr]):
         program: str,
         *args: str,
         stdin: str | bytes | FileDescriptorLike | Path | None = None,
-        stdout: FileDescriptorLike | Path | None = None,
+        stdout: FileDescriptorLike | Path | _STDERR_TYPE | None = None,
         stderr: FileDescriptorLike | Path | None = None,
         cwd: str | Path | None = None,
         env: dict[str, str] | None = None,
@@ -511,13 +511,10 @@ class Process(Generic[AnyStr]):
             logger.error("%s: wait() called but process not started", self.program)
             raise InvalidOperation("Process not started")
 
-        if self._threads_done_event.is_set():
-            logger.debug("%s: wait() skipped – process already terminated", self.program)
-            return self
-
-        logger.debug("%s: waiting for all threads to finish", self.program)
-        self._threads_done_event.wait()
-        logger.debug("%s: background monitoring completed (state=%s)", self.program, self.state)
+        if not self._threads_done_event.is_set():
+            logger.debug("%s: waiting for all threads to finish", self.program)
+            self._threads_done_event.wait()
+            logger.debug("%s: background monitoring completed (state=%s)", self.program, self.state)
 
         self._check_exception()
         if self.check:

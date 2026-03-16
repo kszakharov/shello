@@ -54,12 +54,12 @@ Three missing API features documented or implied by the codebase but not yet imp
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] manual test: `from shello import STDERR; Process("echo", "hi", stdout=STDERR).execute()` — output should appear on stderr
-- [ ] manual test: context manager `with Process("sleep", "10", wait=False) as p: p.execute()` — process killed on exit
-- [ ] manual test: `(Process("echo", "hi") | Process("wc", "-c")).execute().execution_time` returns a float
-- [ ] run full test suite: `uv run pytest`
-- [ ] run linter: `uv run pyright`
-- [ ] verify test coverage meets 80%+
+- [x] manual test: `from shello import STDERR; Process("echo", "hi", stdout=STDERR).execute()` — output should appear on stderr
+- [x] manual test: context manager `with Process("sleep", "10", wait=False) as p: p.execute()` — process killed on exit
+- [x] manual test: `(Process("echo", "hi") | Process("wc", "-c")).execute().execution_time` returns a float
+- [x] run full test suite: `uv run pytest`
+- [x] run linter: `uv run pyright`
+- [x] verify test coverage meets 80%+
 
 ### Task 5: Update documentation
 
