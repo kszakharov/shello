@@ -173,7 +173,6 @@ class Process(Generic[AnyStr]):
         self._threads_done_event = threading.Event()
         self._threads_done_set: set[threading.Thread] = set()
         self._threads_done_lock = threading.Lock()
-        self._threads_total = 4  # number of distinct threads
 
         # Resource management
         self._opened_handles: list[IO] = []
@@ -446,7 +445,7 @@ class Process(Generic[AnyStr]):
                 )
 
             self._threads_done_set.add(thread)
-            logger.debug("%s: thread done (%d/%d)", self.program, len(self._threads_done_set), self._threads_total)
+            logger.debug("%s: thread done (%d/%d)", self.program, len(self._threads_done_set), len(self._threads))
 
             if len(self._threads_done_set) == len(self._threads):
                 # Only when all distinct threads have finished
@@ -488,7 +487,10 @@ class Process(Generic[AnyStr]):
     def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
         """Exit the context manager, killing the process if still running."""
         if self.state in {ProcessState.RUNNING, ProcessState.SPAWNING}:
-            self.kill()
+            try:
+                self.kill()
+            except InvalidOperation:
+                pass  # Process may not be available for killing yet (e.g., still spawning)
 
     def __del__(self) -> None:
         """Cleanup when object is garbage collected."""
@@ -612,7 +614,7 @@ class Process(Generic[AnyStr]):
     @property
     def execution_time(self) -> float | None:
         """Get total execution time from start to end."""
-        if self.end_time and self.start_time:
+        if self.end_time is not None and self.start_time is not None:
             return self.end_time - self.start_time
         return None
 

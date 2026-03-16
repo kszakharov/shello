@@ -474,7 +474,7 @@ def test_context_manager_kills_running_background_process():
     """Test that a running background process is killed on context exit."""
     with Process("sleep", "10", wait=False, check=False) as p:
         p.execute()
-        assert p.state == ProcessState.RUNNING
+        assert p.state in {ProcessState.RUNNING, ProcessState.SPAWNING}
     # After exiting the context, the process should have been killed
     p.wait()
     assert p.state == ProcessState.TERMINATED

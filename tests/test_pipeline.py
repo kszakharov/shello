@@ -153,7 +153,7 @@ class TestPipeline:
         et = pipeline.execution_time
         assert et is not None
         assert isinstance(et, float)
-        assert et >= 0.0
+        assert et > 0.0
 
     def test_pipeline_execution_time_before_execute(self):
         """Test that execution_time returns None before execution."""

@@ -104,7 +104,7 @@ Process(program, *args,
 - `program`: Command to execute
 - `*args`: Command line arguments
 - `stdin`: Input source (string, bytes, file-like object, or `Path`)
-- `stdout`: Output destination (`None`, `DEVNULL`, `STDOUT`, file path, file object)
+- `stdout`: Output destination (`None`, `DEVNULL`, `STDOUT`, `STDERR`, file path, file object)
 - `stderr`: Error output destination (same options as stdout)
 - `cwd`: Working directory
 - `env`: Environment variables dict
