@@ -280,7 +280,7 @@ class Process(Generic[AnyStr]):
 
         except Exception:
             logger.exception("%s: error while writing stdin", self.program)
-            self._exception = self._exception or Exception(f"{self.program}: failed to write stdin")
+            self._exception = self._exception or ProcessError(command=[self.program] + self.args, exit_code=-1, message=f"{self.program}: failed to write stdin")
 
         finally:
             try:
@@ -469,8 +469,8 @@ class Process(Generic[AnyStr]):
             try:
                 if not handle.closed:
                     handle.close()
-            except Exception:
-                pass  # Ignore cleanup errors
+            except Exception as e:
+                logger.warning("%s: failed to close file handle: %s", self.program, e)
         self._opened_handles.clear()
 
     def __del__(self) -> None:
