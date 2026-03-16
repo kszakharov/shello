@@ -394,7 +394,11 @@ class Process(Generic[AnyStr]):
             try:
                 self._process.wait(self.KILL_GRACE_PERIOD)
             except subprocess.TimeoutExpired:
-                self._exception = Exception(f"{self.program}: process did not exit after kill")
+                self._exception = ProcessError(
+                    command=[self.program] + self.args,
+                    exit_code=-1,
+                    message=f"{self.program}: process did not exit after kill",
+                )
             else:
                 self._exception = TimeoutError(f"{self.program}: process timed out after {self.timeout:.2f} seconds")
         except Exception as e:
