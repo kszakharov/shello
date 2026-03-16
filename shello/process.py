@@ -386,7 +386,8 @@ class Process(Generic[AnyStr]):
                 self._process.wait(self.KILL_GRACE_PERIOD)
             except subprocess.TimeoutExpired:
                 self._exception = Exception(f"{self.program}: process did not exit after kill")
-            self._exception = TimeoutError(f"{self.program}: process timed out after {self.timeout:.2f} seconds")
+            else:
+                self._exception = TimeoutError(f"{self.program}: process timed out after {self.timeout:.2f} seconds")
         except Exception as e:
             logger.exception("%s: unexpected error in background monitor", self.program)
             self._exception = e
