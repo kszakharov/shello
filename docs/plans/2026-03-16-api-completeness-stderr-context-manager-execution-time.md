@@ -38,10 +38,10 @@ Three missing API features documented or implied by the codebase but not yet imp
 **Files:**
 - Modify: `shello/process.py`
 
-- [ ] Add `__enter__(self) -> Self` returning `self` (no execution — caller decides when to call `execute()`)
-- [ ] Add `__exit__(self, exc_type, exc_val, exc_tb) -> None` that calls `self.kill()` when `self.state` is `RUNNING` or `SPAWNING`, and returns `None` (does not suppress exceptions)
-- [ ] Write tests: verify `with Process(...) as p:` works and `p` is the process instance; verify a running background process is killed on context exit; verify `execute()` result is accessible inside the `with` block
-- [ ] run project test suite - must pass before task 3
+- [x] Add `__enter__(self) -> Self` returning `self` (no execution — caller decides when to call `execute()`)
+- [x] Add `__exit__(self, exc_type, exc_val, exc_tb) -> None` that calls `self.kill()` when `self.state` is `RUNNING` or `SPAWNING`, and returns `None` (does not suppress exceptions)
+- [x] Write tests: verify `with Process(...) as p:` works and `p` is the process instance; verify a running background process is killed on context exit; verify `execute()` result is accessible inside the `with` block
+- [x] run project test suite - must pass before task 3
 
 ### Task 3: Pipeline.execution_time property
 

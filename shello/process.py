@@ -481,6 +481,15 @@ class Process(Generic[AnyStr]):
                 logger.warning("%s: failed to close file handle: %s", self.program, e)
         self._opened_handles.clear()
 
+    def __enter__(self) -> Self:
+        """Enter the context manager. Does not execute the process."""
+        return self
+
+    def __exit__(self, exc_type: object, exc_val: object, exc_tb: object) -> None:
+        """Exit the context manager, killing the process if still running."""
+        if self.state in {ProcessState.RUNNING, ProcessState.SPAWNING}:
+            self.kill()
+
     def __del__(self) -> None:
         """Cleanup when object is garbage collected."""
         self._cleanup_resources()

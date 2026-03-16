@@ -454,3 +454,45 @@ def test_stderr_constant_is_exported_from_shello():
     assert hasattr(shello, "STDERR")
     assert shello.STDERR is STDERR
 
+
+def test_context_manager_returns_process():
+    """Test that `with Process(...) as p:` yields the process instance."""
+    with Process("echo", "hello") as p:
+        assert isinstance(p, Process)
+        result = p.execute()
+    assert result.returncode == 0
+
+
+def test_context_manager_result_accessible_inside_block():
+    """Test that execute() result is accessible inside the with block."""
+    with Process("echo", "world") as p:
+        result = p.execute()
+        assert b"world" in result.stdout
+
+
+def test_context_manager_kills_running_background_process():
+    """Test that a running background process is killed on context exit."""
+    with Process("sleep", "10", wait=False, check=False) as p:
+        p.execute()
+        assert p.state == ProcessState.RUNNING
+    # After exiting the context, the process should have been killed
+    p.wait()
+    assert p.state == ProcessState.TERMINATED
+    assert p.returncode != 0
+
+
+def test_context_manager_no_kill_when_not_started():
+    """Test that __exit__ does not raise when process was never executed."""
+    with Process("echo", "hi") as p:
+        pass  # Never called execute()
+    # No exception should be raised; process stays PENDING
+    assert p.state == ProcessState.PENDING
+
+
+def test_context_manager_no_kill_when_already_terminated():
+    """Test that __exit__ does not raise when process already terminated."""
+    with Process("echo", "hi") as p:
+        p.execute()
+    # Process is TERMINATED; kill() should not be called (would raise InvalidOperation)
+    assert p.state == ProcessState.TERMINATED
+
