@@ -48,9 +48,9 @@ Three missing API features documented or implied by the codebase but not yet imp
 **Files:**
 - Modify: `shello/pipeline.py`
 
-- [ ] Add `execution_time` property that returns `max(end_times) - min(start_times)` across all processes, or `None` if any start/end time is missing
-- [ ] Write tests: verify `execution_time` is a positive float after pipeline executes; verify it returns `None` before execution
-- [ ] run project test suite - must pass before task 4
+- [x] Add `execution_time` property that returns `max(end_times) - min(start_times)` across all processes, or `None` if any start/end time is missing
+- [x] Write tests: verify `execution_time` is a positive float after pipeline executes; verify it returns `None` before execution
+- [x] run project test suite - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 

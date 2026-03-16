@@ -144,3 +144,18 @@ class TestPipeline:
         result = pipeline.execute()
 
         assert result.returncode == 1  # false exits with 1
+
+    def test_pipeline_execution_time_after_execute(self):
+        """Test that execution_time is a positive float after pipeline executes."""
+        pipeline = Process("echo", "hi") | Process("wc", "-c")
+        assert pipeline.execution_time is None  # Not yet executed
+        pipeline.execute()
+        et = pipeline.execution_time
+        assert et is not None
+        assert isinstance(et, float)
+        assert et >= 0.0
+
+    def test_pipeline_execution_time_before_execute(self):
+        """Test that execution_time returns None before execution."""
+        pipeline = Process("echo", "hi") | Process("wc", "-c")
+        assert pipeline.execution_time is None

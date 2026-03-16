@@ -153,6 +153,20 @@ class Pipeline:
         """Check if any process in the pipeline failed."""
         return not self.is_successful
 
+    @property
+    def execution_time(self) -> float | None:
+        """Get total wall-clock execution time across all processes in the pipeline.
+
+        Returns:
+            The difference between the latest end time and earliest start time,
+            or None if any process has not yet started or completed.
+        """
+        start_times = [p.start_time for p in self.processes]
+        end_times = [p.end_time for p in self.processes]
+        if any(t is None for t in start_times) or any(t is None for t in end_times):
+            return None
+        return max(end_times) - min(start_times)  # type: ignore[type-var]
+
     def execute(self) -> Self:
         """Execute the pipeline of processes.
 
