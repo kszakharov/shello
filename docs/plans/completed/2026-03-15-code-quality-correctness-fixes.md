@@ -63,5 +63,5 @@ Minor formatting issue: each arg description ends with `..` instead of `.`
 
 ### Task 5: Update documentation
 
-- [ ] update CLAUDE.md if internal patterns changed
-- [ ] move this plan to `docs/plans/completed/`
+- [x] update CLAUDE.md if internal patterns changed
+- [x] move this plan to `docs/plans/completed/`
