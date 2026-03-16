@@ -65,9 +65,9 @@ jobs:
           VERSION: ${{ steps.vars.outputs.version }}
         run: |
           sed -n "/^## \[$VERSION\]/,/^## \[/{
-            /^## \[$VERSION\]/d                                         # remove the version header
-            /^## \[/q                                                    # stop at next header
-            p                                                            # print everything else
+            /^## \[$VERSION\]/d              # remove the version header
+            /^## \[/q                        # stop at next header
+            p                                # print everything else
           }" CHANGELOG.md | sed '/./,$!d;${/^$/d}' > RELEASE_NOTES.md
 
           delimiter="$(openssl rand -hex 8)"

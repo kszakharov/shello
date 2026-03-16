@@ -6,3 +6,7 @@ class HasFileno(Protocol):
 
 
 FileDescriptorLike: TypeAlias = int | HasFileno
+
+
+class SupportsFileno(Protocol):
+    def fileno(self) -> int: ...
