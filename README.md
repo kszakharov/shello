@@ -207,6 +207,23 @@ process = shell.long_running_command(wait=False)
 process.wait()  # Wait for completion
 ```
 
+### Context Manager
+
+```python
+# Process is automatically killed on context exit if still running
+with Process("sleep", "10", wait=False) as p:
+    p.execute()
+    # ... do other work ...
+# p.kill() called automatically on exit
+```
+
+### Pipeline Execution Time
+
+```python
+pipeline = (shell.echo("hello") | shell.wc("-c")).execute()
+print(f"Pipeline took {pipeline.execution_time:.3f}s")
+```
+
 ## Development
 
 ```bash
