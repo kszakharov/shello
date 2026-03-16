@@ -56,10 +56,10 @@ Minor formatting issue: each arg description ends with `..` instead of `.`
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] manual test: instantiate a subprocess with a valid stdout fd and confirm it runs without raising ValueError
-- [ ] run full test suite (pytest or equivalent from pyproject.toml)
-- [ ] run linter (pyright if configured in pyproject.toml)
-- [ ] verify test coverage meets 80%+
+- [x] manual test: instantiate a subprocess with a valid stdout fd and confirm it runs without raising ValueError
+- [x] run full test suite (pytest or equivalent from pyproject.toml)
+- [x] run linter (pyright if configured in pyproject.toml)
+- [x] verify test coverage meets 80%+
 
 ### Task 5: Update documentation
 
