@@ -29,6 +29,16 @@ DEVNULL = subprocess.DEVNULL
 STDOUT = subprocess.STDOUT
 PIPE = subprocess.PIPE
 
+
+class _STDERR_TYPE:
+    """Sentinel type for redirecting stdout to stderr (1>&2)."""
+
+    def __repr__(self) -> str:
+        return "STDERR"
+
+
+STDERR = _STDERR_TYPE()
+
 # Acceptable exit codes - range(256) represents any valid exit code
 ANY_EXITCODE = range(256)
 
@@ -618,6 +628,8 @@ class Process(Generic[AnyStr]):
             redirects.append(f"> {self._stdout_destination}")
         elif self._stdout_destination is DEVNULL:
             redirects.append("> /dev/null")
+        elif self._stdout_destination is STDERR:
+            redirects.append("1>&2")
 
         # stderr redirection
         if self._stderr_destination is STDOUT:
@@ -667,6 +679,8 @@ class Process(Generic[AnyStr]):
             return subprocess.PIPE
         elif self._stdout_destination is DEVNULL:
             return subprocess.DEVNULL
+        elif self._stdout_destination is STDERR:
+            return 2
         elif isinstance(self._stdout_destination, int):
             check_fd(self._stdout_destination, "w")
             return self._stdout_destination

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from .exceptions import InvalidArgument, InvalidOperation, ProcessError, ShellError, TimeoutError, UnexpectedExitCodeError
 from .pipeline import Pipeline
-from .process import ANY_EXITCODE, DEVNULL, STDOUT, Process
+from .process import ANY_EXITCODE, DEVNULL, STDERR, STDOUT, Process
 from .shell import Shell, binary_shell, shell
 
 __all__ = [
@@ -14,6 +14,7 @@ __all__ = [
     "Process",
     "ANY_EXITCODE",
     "DEVNULL",
+    "STDERR",
     "STDOUT",
     "ShellError",
     "ProcessError",

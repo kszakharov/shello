@@ -5,7 +5,9 @@ import time
 
 import pytest
 
-from shello import DEVNULL, STDOUT, Process, InvalidOperation, UnexpectedExitCodeError
+import os
+
+from shello import DEVNULL, STDERR, STDOUT, Process, InvalidOperation, UnexpectedExitCodeError
 from shello.exceptions import ProcessError, TimeoutError
 from shello.process import ProcessState
 
@@ -421,4 +423,34 @@ def test_wait_false_then_explicit_wait():
 
     assert result.returncode == 0
     assert b"hello" in result.stdout
+
+
+def test_stderr_constant_str_representation():
+    """Test that stdout=STDERR produces 1>&2 in str()."""
+    process = Process("echo", "hi", stdout=STDERR)
+    assert "1>&2" in str(process)
+
+
+def test_stderr_constant_stdout_not_captured():
+    """Test that stdout=STDERR routes stdout to fd 2, so process.stdout is empty.
+
+    When stdout=STDERR, stdout goes to the parent's fd 2 (terminal stderr),
+    not to a capture pipe. So captured stdout should be empty.
+    """
+    process = Process(
+        "echo", "hello",
+        stdout=STDERR,
+        capture_stdout=False,
+        capture_stderr=True,
+    )
+    process.execute()
+    # stdout was redirected to fd 2, not captured
+    assert process.stdout == b""
+
+
+def test_stderr_constant_is_exported_from_shello():
+    """Test that STDERR is importable from shello."""
+    import shello
+    assert hasattr(shello, "STDERR")
+    assert shello.STDERR is STDERR
 
