@@ -50,9 +50,9 @@ Minor formatting issue: each arg description ends with `..` instead of `.`
 **Files:**
 - Modify: `shello/exceptions.py`
 
-- [ ] Read exceptions.py lines 34-38
-- [ ] Change all double periods to single periods in the ProcessError.__init__ docstring
-- [ ] Run project test suite - must pass before task 4
+- [x] Read exceptions.py lines 34-38
+- [x] Change all double periods to single periods in the ProcessError.__init__ docstring
+- [x] Run project test suite - must pass before task 4
 
 ### Task 4: Verify acceptance criteria
 

@@ -31,11 +31,11 @@ class ProcessError(ShellError):
         """Initialize ProcessError with execution details.
 
         Args:
-            command: List of command and arguments that failed..
-            exit_code: Process exit code..
-            stdout: Captured stdout output (optional)..
-            stderr: Captured stderr output (optional)..
-            message: Custom error message (auto-generated if None)..
+            command: List of command and arguments that failed.
+            exit_code: Process exit code.
+            stdout: Captured stdout output (optional).
+            stderr: Captured stderr output (optional).
+            message: Custom error message (auto-generated if None).
         """
         self.command = command
         self.exit_code = exit_code
