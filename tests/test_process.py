@@ -5,8 +5,8 @@ import time
 
 import pytest
 
-from shello import DEVNULL, STDOUT, Process
-from shello.exceptions import InvalidOperation, ProcessError, TimeoutError
+from shello import DEVNULL, STDOUT, Process, InvalidOperation, UnexpectedExitCodeError
+from shello.exceptions import ProcessError, TimeoutError
 from shello.process import ProcessState
 
 
@@ -367,4 +367,48 @@ def test_binary_mode_stderr_is_bytes_when_no_output():
     assert isinstance(result.stderr, bytes), f"Expected bytes fallback, got {type(result.stderr)}"
     assert result.stderr == b""
 
+
+def test_unexpected_exit_code_error_check_true():
+    """Test UnexpectedExitCodeError raised when check=True and process exits non-zero."""
+    process = Process("false", check=True)
+
+    with pytest.raises(UnexpectedExitCodeError):
+        process.execute()
+
+
+def test_check_returncode_raises_for_nonzero():
+    """Test check_returncode() raises UnexpectedExitCodeError for non-zero exit."""
+    process = Process("false", check=False)
+    process.execute()
+
+    with pytest.raises(UnexpectedExitCodeError):
+        process.check_returncode()
+
+
+def test_stderr_before_execution_raises():
+    """Test accessing .stderr before execute() raises InvalidOperation."""
+    process = Process("echo", "test")
+
+    with pytest.raises(InvalidOperation):
+        _ = process.stderr
+
+
+def test_returncode_before_execution_raises():
+    """Test accessing .returncode before execute() raises InvalidOperation."""
+    process = Process("echo", "test")
+
+    with pytest.raises(InvalidOperation):
+        _ = process.returncode
+
+
+def test_wait_false_then_explicit_wait():
+    """Test wait=False allows deferring wait, then explicit .wait() completes successfully."""
+    process = Process("echo", "hello", wait=False)
+    process.execute()
+
+    # Process is not yet waited on
+    result = process.wait()
+
+    assert result.returncode == 0
+    assert b"hello" in result.stdout
 
