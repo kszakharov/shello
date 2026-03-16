@@ -285,8 +285,8 @@ class Process(Generic[AnyStr]):
         finally:
             try:
                 self._process.stdin.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("%s: failed to close stdin: %s", self.program, e)
 
     @run_once
     @with_callback(on_done=lambda self: cast("Process", self)._task_done())
@@ -363,16 +363,16 @@ class Process(Generic[AnyStr]):
             logger.warning("%s: cannot wait – process is not started", self.program)
             return
 
-        if not self.start_time:
-            raise InvalidOperation("Process started without start_time")
-
-        if self.timeout is not None:
-            timeout = max(0, self.timeout - (time.time() - self.start_time))
-        else:
-            timeout = None
-            logger.debug("%s: no timeout configured", self.program)
-
         try:
+            if not self.start_time:
+                raise InvalidOperation("Process started without start_time")
+
+            if self.timeout is not None:
+                timeout = max(0, self.timeout - (time.time() - self.start_time))
+            else:
+                timeout = None
+                logger.debug("%s: no timeout configured", self.program)
+
             logger.debug("%s: waiting for process to exit", self.program)
             self._process.wait(timeout=timeout)
             self.end_time = time.time()
@@ -391,8 +391,6 @@ class Process(Generic[AnyStr]):
         except Exception as e:
             logger.exception("%s: unexpected error in background monitor", self.program)
             self._exception = e
-            if self._process.poll() is None:
-                raise
         finally:
             if self._process.poll() is None:
                 self._process.kill()
@@ -440,7 +438,7 @@ class Process(Generic[AnyStr]):
             self._threads_done_set.add(thread)
             logger.debug("%s: thread done (%d/%d)", self.program, len(self._threads_done_set), self._threads_total)
 
-            if len(self._threads_done_set) == self._threads_total:
+            if len(self._threads_done_set) == len(self._threads):
                 # Only when all distinct threads have finished
                 logger.debug("%s: all threads done, setting process as TERMINATED", self.program)
                 self.state = ProcessState.TERMINATED
@@ -502,9 +500,9 @@ class Process(Generic[AnyStr]):
         self._threads_done_event.wait()
         logger.debug("%s: background monitoring completed (state=%s)", self.program, self.state)
 
+        self._check_exception()
         if self.check:
             self.check_returncode()
-            self._check_exception()
         return self
 
     def check_returncode(self) -> None:

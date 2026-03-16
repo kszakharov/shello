@@ -197,7 +197,8 @@ class TestProcess:
     def test_pipeline_timeout_source(self):
         """Test timeout on the source process in a pipeline."""
         pipeline = Process("sleep", "2", timeout=0.5) | Process("echo", "done")
-        pipeline.execute()
+        with pytest.raises(TimeoutError):
+            pipeline.execute()
         assert pipeline.processes[0].state == ProcessState.TERMINATED
         assert pipeline.processes[0].returncode == -signal.SIGKILL
 
@@ -385,6 +386,13 @@ def test_check_returncode_raises_for_nonzero():
         process.check_returncode()
 
 
+def test_check_returncode_does_not_raise_when_code_in_ok_exitcodes():
+    """Test check_returncode() does not raise when exit code is in ok_exitcodes."""
+    process = Process("sh", "-c", "exit 2", ok_exitcodes=2, check=False)
+    process.execute()
+    process.check_returncode()  # Should not raise
+
+
 def test_stderr_before_execution_raises():
     """Test accessing .stderr before execute() raises InvalidOperation."""
     process = Process("echo", "test")
@@ -403,10 +411,12 @@ def test_returncode_before_execution_raises():
 
 def test_wait_false_then_explicit_wait():
     """Test wait=False allows deferring wait, then explicit .wait() completes successfully."""
-    process = Process("echo", "hello", wait=False)
+    process = Process("sh", "-c", "sleep 0.05 && echo hello", wait=False)
     process.execute()
 
-    # Process is not yet waited on
+    # Process is not yet terminated immediately after execute() with wait=False
+    assert process.state != ProcessState.TERMINATED
+
     result = process.wait()
 
     assert result.returncode == 0

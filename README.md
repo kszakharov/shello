@@ -95,7 +95,7 @@ Process(program, *args,
        stdin=None, stdout=None, stderr=None,
        cwd=None, env=None, check=True, ok_exitcodes=0, text=False,
        timeout=None, capture_stdout=True, capture_stderr=True,
-       print_stdout=False, print_stderr=False, **kwargs)
+       print_stdout=False, print_stderr=False, wait=True, **kwargs)
 ```
 
 `Process` is generic over `AnyStr`: use `text=True` to get a `Process[str]` where `.stdout`/`.stderr` return `str`, or `text=False` (default) to get a `Process[bytes]` where they return `bytes`. The module-level `shell` convenience object defaults to `text=True`.
@@ -116,12 +116,14 @@ Process(program, *args,
 - `capture_stderr`: Capture stderr for retrieval via `.stderr` (default: `True`)
 - `print_stdout`: Print stdout to console during execution (default: `False`)
 - `print_stderr`: Print stderr to console during execution (default: `False`)
+- `wait`: Block until process completes after `execute()` (default: `True`); set to `False` to start without blocking, then call `.wait()` explicitly
 - `**kwargs`: Additional subprocess arguments
 
 #### Methods
 
 - `execute() -> Self`: Execute the process and return self (raises on error if `check=True`)
 - `wait() -> Self`: Wait for process completion and return self
+- `check_returncode() -> None`: Raise `UnexpectedExitCodeError` if exit code is not in `ok_exitcodes`
 - `kill(signal=15) -> None`: Send signal to process
 - `pid -> int | None`: Get process ID
 - `stdout -> str | bytes`: Get captured stdout (`str` when `text=True`, `bytes` when `text=False`)

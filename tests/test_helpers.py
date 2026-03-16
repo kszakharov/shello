@@ -62,6 +62,16 @@ class TestCheckFd:
             os.close(r_fd)
             os.close(w_fd)
 
+    def test_read_only_fd_with_mode_rw_raises_invalid_argument(self):
+        """A read-only fd (pipe read end) with mode 'rw' should raise InvalidArgument."""
+        r_fd, w_fd = os.pipe()
+        try:
+            with pytest.raises(InvalidArgument):
+                check_fd(r_fd, "rw")
+        finally:
+            os.close(r_fd)
+            os.close(w_fd)
+
     def test_invalid_fd_raises_invalid_argument(self):
         """An invalid (closed) fd should raise InvalidArgument."""
         r_fd, w_fd = os.pipe()
