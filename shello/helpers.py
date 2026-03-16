@@ -19,6 +19,9 @@ def check_fd(fd: FileDescriptorLike, mode: str) -> None:
     except (OSError, ValueError) as e:
         raise InvalidArgument(f"Invalid file descriptor: {fd!r}") from e
 
+    if mode not in ("r", "w", "rw"):
+        raise ValueError(f"Invalid mode: {mode!r}")
+
     accmode = flags & os.O_ACCMODE
 
     if mode == "r" and accmode not in (os.O_RDONLY, os.O_RDWR):
@@ -27,5 +30,3 @@ def check_fd(fd: FileDescriptorLike, mode: str) -> None:
         raise InvalidArgument(f"File descriptor {fd!r} is not writable")
     elif mode == "rw" and accmode != os.O_RDWR:
         raise InvalidArgument(f"File descriptor {fd!r} is not readable and writable")
-    else:
-        raise ValueError(f"Invalid mode: {mode!r}")
