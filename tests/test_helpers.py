@@ -22,6 +22,15 @@ class TestCheckFd:
         with tempfile.TemporaryFile(mode="wb") as f:
             check_fd(f.fileno(), "w")
 
+    def test_valid_write_only_fd_with_mode_w(self):
+        """An O_WRONLY fd (pipe write end) with mode 'w' should not raise."""
+        r_fd, w_fd = os.pipe()
+        try:
+            check_fd(w_fd, "w")
+        finally:
+            os.close(r_fd)
+            os.close(w_fd)
+
     def test_valid_rdwr_fd_with_mode_rw(self):
         """An O_RDWR fd with mode 'rw' should not raise."""
         with tempfile.TemporaryFile() as f:

@@ -198,7 +198,3 @@ class TestStateMachineLeaks:
             assert process.state == ProcessState.TERMINATED
 
 
-class TestLockBehavior:
-    """Specific tests for lock behavior and deadlock prevention."""
-
-    pass

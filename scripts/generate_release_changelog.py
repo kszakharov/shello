@@ -32,6 +32,8 @@ def get_versions():
 
 def main():
     versions = get_versions()
+    if VERSION not in versions:
+        sys.exit(f"Version {VERSION!r} not found in CHANGELOG.md")
     RELEASE_NOTES.write_text(versions[VERSION]["body"] + "\n")
 
 

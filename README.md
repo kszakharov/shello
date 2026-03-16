@@ -93,7 +93,9 @@ Represents a process that can be executed.
 ```python
 Process(program, *args,
        stdin=None, stdout=None, stderr=None,
-       cwd=None, env=None, check=True, ok_exitcodes=0, text=False, **kwargs)
+       cwd=None, env=None, check=True, ok_exitcodes=0, text=False,
+       timeout=None, capture_stdout=True, capture_stderr=True,
+       print_stdout=False, print_stderr=False, **kwargs)
 ```
 
 `Process` is generic over `AnyStr`: use `text=True` to get a `Process[str]` where `.stdout`/`.stderr` return `str`, or `text=False` (default) to get a `Process[bytes]` where they return `bytes`. The module-level `shell` convenience object defaults to `text=True`.
@@ -109,17 +111,23 @@ Process(program, *args,
 - `check`: Raise exception on unacceptable exit (default: `True`)
 - `ok_exitcodes`: Acceptable exit codes (default: `0`, use `ANY_EXITCODE` for any) - can be int or container
 - `text`: Text mode for I/O; `True` → `Process[str]`, `False` (default) → `Process[bytes]`
+- `timeout`: Maximum execution time in seconds; raises `TimeoutError` if exceeded (default: `None`)
+- `capture_stdout`: Capture stdout for retrieval via `.stdout` (default: `True`)
+- `capture_stderr`: Capture stderr for retrieval via `.stderr` (default: `True`)
+- `print_stdout`: Print stdout to console during execution (default: `False`)
+- `print_stderr`: Print stderr to console during execution (default: `False`)
 - `**kwargs`: Additional subprocess arguments
 
 #### Methods
 
-- `execute() -> Process`: Execute the process and wait for completion
-- `wait() -> int`: Wait for process completion and return exit code
+- `execute() -> Self`: Execute the process and return self (raises on error if `check=True`)
+- `wait() -> Self`: Wait for process completion and return self
 - `kill(signal=15) -> None`: Send signal to process
 - `pid -> int | None`: Get process ID
 - `stdout -> str | bytes`: Get captured stdout (`str` when `text=True`, `bytes` when `text=False`)
 - `stderr -> str | bytes`: Get captured stderr (`str` when `text=True`, `bytes` when `text=False`)
 - `returncode -> int`: Get process return code
+- `execution_time -> float | None`: Wall-clock execution time in seconds, or `None` if not yet complete
 
 #### Pipeline Operator
 
@@ -141,10 +149,12 @@ result = (shell.cat("file.txt") | shell.grep("pattern") | shell.wc("-l")).execut
 ### Exception Hierarchy
 
 ```python
-ShellError          # Base exception
-├── ProcessError    # Process execution failures
-├── InvalidArgument # Invalid arguments
-└── InvalidOperation # Invalid operations
+ShellError                    # Base exception
+├── ProcessError              # Process execution failures (command not found, subprocess error)
+├── InvalidArgument           # Invalid arguments passed to a process
+├── InvalidOperation          # Invalid operations (e.g. calling execute() twice)
+├── TimeoutError              # Process exceeded the configured timeout
+└── UnexpectedExitCodeError   # Exit code not in ok_exitcodes (raised when check=True)
 ```
 
 ## Examples

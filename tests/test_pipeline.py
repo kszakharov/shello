@@ -65,7 +65,7 @@ class TestPipeline:
         result = pipeline.execute()
 
         assert result.returncode == 0
-        # Should remove spaces from the character count
+        # tr removes leading spaces from wc's output; "11" should remain
         assert isinstance(result.stdout, bytes)
         assert "11" in result.stdout.decode()
 
