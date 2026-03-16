@@ -150,7 +150,13 @@ class Pipeline:
 
     @property
     def is_failed(self) -> bool:
-        """Check if any process in the pipeline failed."""
+        """Check if any process in the pipeline failed.
+
+        Raises:
+            InvalidOperation: If the pipeline has not fully executed.
+        """
+        if not self.is_done:
+            raise InvalidOperation("Pipeline not fully executed")
         return not self.is_successful
 
     @property
@@ -161,11 +167,11 @@ class Pipeline:
             The difference between the latest end time and earliest start time,
             or None if any process has not yet started or completed.
         """
-        start_times = [p.start_time for p in self.processes]
-        end_times = [p.end_time for p in self.processes]
-        if any(t is None for t in start_times) or any(t is None for t in end_times):
+        starts: list[float] = [p.start_time for p in self.processes if p.start_time is not None]
+        ends: list[float] = [p.end_time for p in self.processes if p.end_time is not None]
+        if len(starts) != len(self.processes) or len(ends) != len(self.processes):
             return None
-        return max(end_times) - min(start_times)  # type: ignore[type-var]
+        return max(ends) - min(starts)
 
     def execute(self) -> Self:
         """Execute the pipeline of processes.
