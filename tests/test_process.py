@@ -7,7 +7,7 @@ import pytest
 
 import os
 
-from shello import DEVNULL, STDERR, STDOUT, Process, InvalidOperation, UnexpectedExitCodeError
+from shello import DEVNULL, STDERR, STDOUT, Process, InvalidArgument, InvalidOperation, UnexpectedExitCodeError
 from shello.exceptions import ProcessError, TimeoutError
 from shello.process import ProcessState
 
@@ -495,4 +495,64 @@ def test_context_manager_no_kill_when_already_terminated():
         p.execute()
     # Process is TERMINATED; kill() should not be called (would raise InvalidOperation)
     assert p.state == ProcessState.TERMINATED
+
+
+class TestInteractiveMode:
+    """Tests for interactive=True parameter."""
+
+    def test_interactive_simple_command_completes(self):
+        """Test that interactive=True executes a simple command and completes successfully."""
+        process = Process("true", interactive=True)
+        result = process.execute()
+
+        assert result.returncode == 0
+        assert result.state == ProcessState.TERMINATED
+
+    def test_interactive_wait_false_then_wait(self):
+        """Test that interactive=True with wait=False starts and can be waited on."""
+        process = Process("true", interactive=True, wait=False)
+        process.execute()
+
+        # May still be running or terminated — either is valid after execute() with wait=False
+        result = process.wait()
+        assert result.returncode == 0
+        assert result.state == ProcessState.TERMINATED
+
+    def test_interactive_stdin_bytes_raises(self):
+        """Test that interactive=True with stdin=bytes raises InvalidArgument at construction."""
+        with pytest.raises(InvalidArgument):
+            Process("cat", interactive=True, stdin=b"data")
+
+    def test_interactive_stdin_str_raises(self):
+        """Test that interactive=True with stdin=str raises InvalidArgument at construction."""
+        with pytest.raises(InvalidArgument):
+            Process("cat", interactive=True, stdin="data")
+
+    def test_interactive_stdout_is_empty_bytes(self):
+        """Test that interactive=True leaves stdout as empty bytes after execution."""
+        process = Process("true", interactive=True)
+        process.execute()
+
+        assert process.stdout == b""
+
+    def test_interactive_stderr_is_empty_bytes(self):
+        """Test that interactive=True leaves stderr as empty bytes after execution."""
+        process = Process("true", interactive=True)
+        process.execute()
+
+        assert process.stderr == b""
+
+    def test_interactive_correct_returncode_success(self):
+        """Test that interactive=True process returns correct returncode on success."""
+        process = Process("true", interactive=True)
+        process.execute()
+
+        assert process.returncode == 0
+
+    def test_interactive_correct_returncode_failure(self):
+        """Test that interactive=True process returns correct returncode on failure."""
+        process = Process("false", interactive=True, check=False)
+        process.execute()
+
+        assert process.returncode == 1
 
