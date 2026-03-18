@@ -46,10 +46,10 @@ Fix: extract all interactive-mode logic into a new `InteractiveProcess` class in
 - Modify: `shello/__init__.py`
 - Modify: `shello/pipeline.py`
 
-- [ ] In `shell.py`: import `InteractiveProcess` from `.interactive`; in both `__call__` and the `create_process` closure inside `__getattr__`, check `options.get("interactive")` and return `InteractiveProcess(program, *args, **options)` instead of `Process(...)` when true
-- [ ] In `__init__.py`: add `InteractiveProcess` to imports from `.interactive` and to `__all__`
-- [ ] In `pipeline.py`: replace `process.interactive` attribute check with `isinstance(process, InteractiveProcess)` (import `InteractiveProcess` there); or verify the check is no longer needed after the refactor
-- [ ] Run `uv run pytest` — must pass before Task 3
+- [x] In `shell.py`: import `InteractiveProcess` from `.interactive`; in both `__call__` and the `create_process` closure inside `__getattr__`, check `options.get("interactive")` and return `InteractiveProcess(program, *args, **options)` instead of `Process(...)` when true
+- [x] In `__init__.py`: add `InteractiveProcess` to imports from `.interactive` and to `__all__`
+- [x] In `pipeline.py`: verified `process.interactive` attribute check still works correctly since `InteractiveProcess` sets `self.interactive = True` via `super().__init__(**kwargs)`
+- [x] Run `uv run pytest` — must pass before Task 3
 
 ### Task 3: Update and extend tests
 

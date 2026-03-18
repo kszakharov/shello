@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .interactive import InteractiveProcess
 from .process import Process
 
 
@@ -33,6 +34,8 @@ class Shell:
         options = self.default_options.copy()
         options.update(kwargs)
 
+        if options.get("interactive"):
+            return InteractiveProcess(program, *args, **options)
         return Process(program, *args, **options)
 
     def __getattr__(self, program: str):
@@ -62,6 +65,8 @@ class Shell:
             """
             options = self.default_options.copy()
             options.update(kwargs)
+            if options.get("interactive"):
+                return InteractiveProcess(program_name, *args, **options)
             return Process(program_name, *args, **options)
 
         return create_process

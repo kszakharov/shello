@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .exceptions import InvalidArgument, InvalidOperation, ProcessError, ShellError, TimeoutError, UnexpectedExitCodeError
+from .interactive import InteractiveProcess
 from .pipeline import Pipeline
 from .process import ANY_EXITCODE, DEVNULL, STDERR, STDOUT, Process
 from .shell import Shell, binary_shell, shell
@@ -12,6 +13,7 @@ __all__ = [
     "shell",
     "Shell",
     "Process",
+    "InteractiveProcess",
     "ANY_EXITCODE",
     "DEVNULL",
     "STDERR",
