@@ -118,7 +118,7 @@ Process(program, *args,
 - `print_stdout`: Print stdout to console during execution (default: `False`)
 - `print_stderr`: Print stderr to console during execution (default: `False`)
 - `wait`: Block until process completes after `execute()` (default: `True`); set to `False` to start without blocking, then call `.wait()` explicitly
-- `interactive`: Connect stdin/stdout/stderr directly to the parent terminal (default: `False`); enables real-time interaction with programs like REPLs, editors, or prompts — incompatible with `stdin=str/bytes`
+- `interactive`: Connect stdin/stdout/stderr directly to the parent terminal (default: `False`); enables real-time interaction with programs like REPLs, editors, or prompts — incompatible with any non-`None` `stdin`
 - `**kwargs`: Additional subprocess arguments
 
 #### Methods
@@ -248,7 +248,7 @@ Process("bash", "-i", interactive=True).execute()
 When `interactive=True`:
 - stdin/stdout/stderr are inherited directly from the parent process (no capturing)
 - `.stdout` and `.stderr` return empty bytes/str after execution
-- Passing `stdin=str` or `stdin=bytes` raises `InvalidArgument` (no pipe is created)
+- Passing any non-`None` `stdin` raises `InvalidArgument`
 
 ## Development
 

@@ -410,7 +410,11 @@ class Process(Generic[AnyStr]):
                 self._exception = TimeoutError(f"{self.program}: process timed out after {self.timeout:.2f} seconds")
         except Exception as e:
             logger.exception("%s: unexpected error in background monitor", self.program)
-            self._exception = e
+            self._exception = ProcessError(
+                command=[self.program] + self.args,
+                exit_code=-1,
+                message=f"{self.program}: unexpected error during execution: {e}",
+            )
         finally:
             if self._process.poll() is None:
                 self._process.kill()
