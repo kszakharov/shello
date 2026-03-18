@@ -9,6 +9,7 @@ import pytest
 
 from shello import DEVNULL, STDERR, STDOUT, Process, InvalidArgument, InvalidOperation, UnexpectedExitCodeError
 from shello.exceptions import ProcessError, TimeoutError
+from shello.interactive import InteractiveProcess
 from shello.process import ProcessState
 
 
@@ -576,3 +577,54 @@ class TestInteractiveMode:
         assert process.stdout == ""
         assert isinstance(process.stdout, str)
 
+
+class TestInteractiveProcessBasic:
+    """Basic tests for InteractiveProcess (PTY-based)."""
+
+    def test_pty_simple_command_completes(self):
+        """Test that InteractiveProcess executes a simple command and completes."""
+        process = InteractiveProcess("true")
+        result = process.execute()
+
+        assert result.returncode == 0
+        assert result.state == ProcessState.TERMINATED
+
+    def test_pty_failure_returncode(self):
+        """Test that InteractiveProcess returns correct returncode on failure."""
+        process = InteractiveProcess("false", check=False)
+        process.execute()
+
+        assert process.returncode == 1
+
+    def test_pty_wait_false_then_wait(self):
+        """Test that InteractiveProcess with wait=False is non-blocking."""
+        process = InteractiveProcess("sh", "-c", "sleep 0.05", wait=False)
+        process.execute()
+
+        assert process.state != ProcessState.TERMINATED
+
+        result = process.wait()
+        assert result.returncode == 0
+        assert result.state == ProcessState.TERMINATED
+
+    def test_pty_pid_is_set(self):
+        """Test that InteractiveProcess sets pid after execute."""
+        process = InteractiveProcess("true")
+        process.execute()
+
+        assert process.pid is not None
+        assert isinstance(process.pid, int)
+
+    def test_pty_returncode_before_execution_raises(self):
+        """Test that accessing returncode before execute raises InvalidOperation."""
+        process = InteractiveProcess("true")
+
+        with pytest.raises(InvalidOperation):
+            _ = process.returncode
+
+    def test_pty_kill_unexecuted_raises(self):
+        """Test that killing unexecuted InteractiveProcess raises InvalidOperation."""
+        process = InteractiveProcess("sleep", "10")
+
+        with pytest.raises(InvalidOperation, match="not executed"):
+            process.kill()

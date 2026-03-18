@@ -434,10 +434,9 @@ class Process(Generic[AnyStr]):
 
         logger.debug("%s: starting background monitor threads", self.program)
 
-        if not self.interactive:
-            self._threads.append(Thread(target=self._write_stdin, name=f"[{self.program} stdin]"))
-            self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]"))
-            self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]"))
+        self._threads.append(Thread(target=self._write_stdin, name=f"[{self.program} stdin]"))
+        self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]"))
+        self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]"))
         self._threads.append(Thread(target=self._handle_execution, name=f"[{self.program} wait]"))
 
         for thread in self._threads:
@@ -683,8 +682,6 @@ class Process(Generic[AnyStr]):
 
     def _get_stdin_handle(self) -> int | IO | None:
         """Get stdin handle for subprocess."""
-        if self.interactive:
-            return None
         if self.stdin in (None, subprocess.PIPE):
             return subprocess.PIPE
         if isinstance(self.stdin, int):
@@ -705,8 +702,6 @@ class Process(Generic[AnyStr]):
 
     def _get_stdout_handle(self) -> int | IO | None:
         """Get stdout handle for subprocess."""
-        if self.interactive:
-            return None
         if self._stdout_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
         elif self._stdout_destination is DEVNULL:
@@ -725,8 +720,6 @@ class Process(Generic[AnyStr]):
 
     def _get_stderr_handle(self) -> int | IO | None:
         """Get stderr handle for subprocess."""
-        if self.interactive:
-            return None
         if self._stderr_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
         elif self._stderr_destination is subprocess.STDOUT:
