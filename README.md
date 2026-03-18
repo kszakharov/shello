@@ -228,9 +228,9 @@ print(f"Pipeline took {pipeline.execution_time:.3f}s")
 
 ### Interactive Mode
 
-Use `interactive=True` to connect a process directly to the parent terminal, allowing
-real-time interaction. This is useful for programs that need a real TTY: REPLs,
-editors, pagers, or any prompt-driven tool.
+Use `interactive=True` to run a process with a real pseudo-terminal (PTY), allowing
+full interaction with programs that require a TTY: REPLs, editors, SSH, pagers, or
+any prompt-driven tool.
 
 ```python
 from shello import Process
@@ -241,13 +241,18 @@ Process("python3", interactive=True).execute()
 # Open a file in vim
 Process("vim", "notes.txt", interactive=True).execute()
 
+# SSH to a remote host with full terminal support
+Process("ssh", "user@host", interactive=True).execute()
+
 # Run an interactive shell command
 Process("bash", "-i", interactive=True).execute()
 ```
 
 When `interactive=True`:
-- stdin/stdout/stderr are inherited directly from the parent process (no capturing)
-- `.stdout` and `.stderr` return empty bytes/str after execution
+- A real PTY is allocated via `pty.fork()` so the child program sees a terminal
+- I/O is proxied between the parent terminal and the child's PTY
+- Programs that require a real TTY (e.g. SSH raw mode, terminal editors) work correctly
+- `.stdout` and `.stderr` are not captured and will raise `InvalidOperation` if accessed
 - Passing any non-`None` `stdin` raises `InvalidArgument`
 
 ## Development
