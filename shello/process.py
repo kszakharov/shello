@@ -257,6 +257,9 @@ class Process(Generic[AnyStr]):
             raise ProcessError(command=[self.program] + self.args, exit_code=-1, message=str(e)) from e
         finally:
             self._cleanup_resources()
+            if self._state is ProcessState.SPAWNING:
+                with self._lock:
+                    self._state = ProcessState.PENDING
 
         self._background_monitor()
 

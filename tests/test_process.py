@@ -74,7 +74,7 @@ class TestProcess:
             process.execute()
 
         # Process should not have started
-        assert process.state == ProcessState.SPAWNING
+        assert process.state == ProcessState.PENDING
 
     def test_devnull_stdout(self):
         """Test DEVNULL stdout."""

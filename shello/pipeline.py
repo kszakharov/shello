@@ -36,7 +36,7 @@ class Pipeline:
         self.processes = list(processes)
         self._wait = wait
 
-    def __or__(self, other) -> Self:
+    def __or__(self, other) -> "Pipeline":
         """Support shell-style pipeline operator: Pipeline(...) | Process(...).
 
         Enables chaining processes onto existing pipelines using the | operator.
@@ -56,8 +56,7 @@ class Pipeline:
         if not isinstance(other, Process):
             return NotImplemented
 
-        self.add(other)
-        return self
+        return Pipeline(*self.processes, other, wait=self._wait)
 
     def __str__(self) -> str:
         """String representation of the pipeline.

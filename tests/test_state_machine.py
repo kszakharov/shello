@@ -182,8 +182,8 @@ class TestStateMachineLeaks:
         with pytest.raises(ProcessError):
             process.execute()
 
-        # State should be consistent (not corrupted)
-        assert process.state is ProcessState.SPAWNING
+        # State should be consistent (not corrupted) - reset to PENDING when spawn fails
+        assert process.state is ProcessState.PENDING
 
     def test_state_access_after_cleanup(self):
         """Test state access behavior after process completion."""
