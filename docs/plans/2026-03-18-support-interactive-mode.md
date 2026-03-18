@@ -47,8 +47,8 @@ Add an `interactive` parameter to `Process` that connects stdin/stdout/stderr di
 
 ### Task 3: Verify acceptance criteria
 
-- [ ] `uv run pytest`
-- [ ] `uv run pyright`
+- [x] `uv run pytest`
+- [x] `uv run pyright`
 
 ### Task 4: Update documentation
 

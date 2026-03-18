@@ -526,7 +526,7 @@ class TestInteractiveMode:
     def test_interactive_stdin_str_raises(self):
         """Test that interactive=True with stdin=str raises InvalidArgument at construction."""
         with pytest.raises(InvalidArgument):
-            Process("cat", interactive=True, stdin="data")
+            Process("cat", interactive=True, stdin="data")  # type: ignore[arg-type]
 
     def test_interactive_stdout_is_empty_bytes(self):
         """Test that interactive=True leaves stdout as empty bytes after execution."""
