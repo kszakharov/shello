@@ -76,6 +76,7 @@ class Process(Generic[AnyStr]):
         print_stdout: bool = ...,
         print_stderr: bool = ...,
         wait: bool = ...,
+        interactive: bool = ...,
         **kwargs: Any,
     ) -> None: ...
 
@@ -98,6 +99,7 @@ class Process(Generic[AnyStr]):
         print_stdout: bool = ...,
         print_stderr: bool = ...,
         wait: bool = ...,
+        interactive: bool = ...,
         **kwargs: Any,
     ) -> None: ...
 
@@ -119,6 +121,7 @@ class Process(Generic[AnyStr]):
         print_stdout: bool = False,
         print_stderr: bool = False,
         wait: bool = True,
+        interactive: bool = False,
         **kwargs: Any,
     ) -> None:
         """Initialize a Process.
@@ -140,6 +143,8 @@ class Process(Generic[AnyStr]):
             print_stdout: Whether to print stdout to console during execution (default: False)
             print_stderr: Whether to print stderr to console during execution (default: False)
             wait: Whether to wait for process to complete before returning
+            interactive: Whether to connect stdin/stdout/stderr directly to the parent terminal,
+                allowing real-time interaction. Incompatible with stdin=str/bytes.
             **kwargs: Additional arguments passed to subprocess
         """
         self.program = program
@@ -158,7 +163,11 @@ class Process(Generic[AnyStr]):
         self.print_stdout = print_stdout
         self.print_stderr = print_stderr
         self._wait = wait
+        self.interactive = interactive
         self.kwargs = kwargs
+
+        if interactive and isinstance(stdin, (str, bytes)):
+            raise InvalidArgument("interactive=True is incompatible with stdin=str/bytes (no pipe to write to)")
 
         # Runtime state
         self._process: subprocess.Popen | None = None
@@ -420,9 +429,10 @@ class Process(Generic[AnyStr]):
 
         logger.debug("%s: starting background monitor threads", self.program)
 
-        self._threads.append(Thread(target=self._write_stdin, name=f"[{self.program} stdin]"))
-        self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]"))
-        self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]"))
+        if not self.interactive:
+            self._threads.append(Thread(target=self._write_stdin, name=f"[{self.program} stdin]"))
+            self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]"))
+            self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]"))
         self._threads.append(Thread(target=self._handle_execution, name=f"[{self.program} wait]"))
 
         for thread in self._threads:
@@ -667,6 +677,8 @@ class Process(Generic[AnyStr]):
 
     def _get_stdin_handle(self) -> int | IO | None:
         """Get stdin handle for subprocess."""
+        if self.interactive:
+            return None
         if self.stdin in (None, subprocess.PIPE):
             return subprocess.PIPE
         if isinstance(self.stdin, int):
@@ -687,6 +699,8 @@ class Process(Generic[AnyStr]):
 
     def _get_stdout_handle(self) -> int | IO | None:
         """Get stdout handle for subprocess."""
+        if self.interactive:
+            return None
         if self._stdout_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
         elif self._stdout_destination is DEVNULL:
@@ -705,6 +719,8 @@ class Process(Generic[AnyStr]):
 
     def _get_stderr_handle(self) -> int | IO | None:
         """Get stderr handle for subprocess."""
+        if self.interactive:
+            return None
         if self._stderr_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
         elif self._stderr_destination is subprocess.STDOUT:
