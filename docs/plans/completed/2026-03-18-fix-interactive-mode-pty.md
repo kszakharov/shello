@@ -71,5 +71,5 @@ Fix: extract all interactive-mode logic into a new `InteractiveProcess` class in
 
 ### Task 5: Update documentation
 
-- [ ] Update README.md if interactive mode behavior docs need adjusting
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Update README.md if interactive mode behavior docs need adjusting
+- [x] Move this plan to `docs/plans/completed/`
