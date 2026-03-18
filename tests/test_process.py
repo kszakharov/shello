@@ -509,11 +509,13 @@ class TestInteractiveMode:
         assert result.state == ProcessState.TERMINATED
 
     def test_interactive_wait_false_then_wait(self):
-        """Test that interactive=True with wait=False starts and can be waited on."""
-        process = Process("true", interactive=True, wait=False)
+        """Test that interactive=True with wait=False is non-blocking and can be waited on."""
+        process = Process("sh", "-c", "sleep 0.05", interactive=True, wait=False)
         process.execute()
 
-        # May still be running or terminated — either is valid after execute() with wait=False
+        # Process must not be terminated immediately after non-blocking execute()
+        assert process.state != ProcessState.TERMINATED
+
         result = process.wait()
         assert result.returncode == 0
         assert result.state == ProcessState.TERMINATED

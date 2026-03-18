@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from typing import Self
 
-from shello.exceptions import InvalidOperation, ProcessError, TimeoutError
+from shello.exceptions import InvalidOperation, ProcessError, TimeoutError, UnexpectedExitCodeError
 
 if TYPE_CHECKING:
     from shello.process import Process
@@ -222,6 +222,7 @@ class Pipeline:
         Raises:
             TimeoutError: If any process times out while waiting.
             ProcessError: If any process fails during execution.
+            UnexpectedExitCodeError: If any process exits with an unexpected return code.
         """
         for process in self.processes:
             logger.debug("%s: waiting for process (state=%s)", process, process.state)
@@ -230,6 +231,10 @@ class Pipeline:
                 logger.info("%s: process completed (exit_code=%s, state=%s)", process, process.returncode, process.state)
             except TimeoutError:
                 logger.debug("%s: process timed out (state=%s)", process, process.state)
+                raise
+            except UnexpectedExitCodeError as e:
+                logger.error("%s: process exited with unexpected code (state=%s)", process, process.state)
+                logger.error("%s: unexpected exit code details", process, exc_info=e)
                 raise
             except ProcessError as e:
                 logger.error("%s: process failed (state=%s)", process, process.state)
