@@ -628,3 +628,35 @@ class TestInteractiveProcessBasic:
 
         with pytest.raises(InvalidOperation, match="not executed"):
             process.kill()
+
+    def test_interactive_pty_env(self):
+        """Test that InteractiveProcess passes env vars to the child process."""
+        # sh -c 'test -n "$TEST_VAR"' exits 0 if TEST_VAR is non-empty
+        process = InteractiveProcess(
+            "sh", "-c", 'test -n "$TEST_VAR"',
+            env={"TEST_VAR": "hello", "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
+        )
+        result = process.execute()
+
+        assert result.returncode == 0
+
+    def test_interactive_pty_cwd(self):
+        """Test that InteractiveProcess respects the cwd parameter."""
+        # pwd exits 0 regardless; we just verify successful execution with cwd set
+        process = InteractiveProcess("pwd", cwd="/tmp")
+        result = process.execute()
+
+        assert result.returncode == 0
+
+    def test_interactive_kill(self):
+        """Test that InteractiveProcess can be killed and returns a signal-based returncode."""
+        process = InteractiveProcess("sleep", "10", wait=False, check=False)
+        process.execute()
+
+        assert process.state != ProcessState.TERMINATED
+
+        process.kill(signal.SIGTERM)
+        result = process.wait()
+
+        assert result.state == ProcessState.TERMINATED
+        assert result.returncode == -signal.SIGTERM

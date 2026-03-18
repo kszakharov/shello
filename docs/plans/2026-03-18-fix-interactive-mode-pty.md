@@ -56,12 +56,12 @@ Fix: extract all interactive-mode logic into a new `InteractiveProcess` class in
 **Files:**
 - Modify: `tests/test_process.py`
 
-- [ ] Verify all existing `TestInteractiveMode` tests still pass (they use `true`, `false`, `sh -c "sleep 0.05"`)
-- [ ] Add `test_interactive_pty_env` — run `InteractiveProcess` with `env={...}` on a command that prints an env var; verify returncode 0
-- [ ] Add `test_interactive_pty_cwd` — run `InteractiveProcess` with `cwd="/tmp"` running `pwd`; verify returncode 0
-- [ ] Add `test_interactive_kill` — start `InteractiveProcess("sleep", "10", wait=False)`, call `execute()`, then `kill()`, then `wait(check=False)`; verify returncode indicates signal termination
-- [ ] Run `uv run pytest` — must pass
-- [ ] Run `uv run pyright` — must pass clean
+- [x] Verify all existing `TestInteractiveMode` tests still pass (they use `true`, `false`, `sh -c "sleep 0.05"`)
+- [x] Add `test_interactive_pty_env` — run `InteractiveProcess` with `env={...}` on a command that prints an env var; verify returncode 0
+- [x] Add `test_interactive_pty_cwd` — run `InteractiveProcess` with `cwd="/tmp"` running `pwd`; verify returncode 0
+- [x] Add `test_interactive_kill` — start `InteractiveProcess("sleep", "10", wait=False)`, call `execute()`, then `kill()`, then `wait(check=False)`; verify returncode indicates signal termination
+- [x] Run `uv run pytest` — must pass
+- [x] Run `uv run pyright` — must pass clean
 
 ### Task 4: Verify acceptance criteria
 
