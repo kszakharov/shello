@@ -95,7 +95,8 @@ Process(program, *args,
        stdin=None, stdout=None, stderr=None,
        cwd=None, env=None, check=True, ok_exitcodes=0, text=False,
        timeout=None, capture_stdout=True, capture_stderr=True,
-       print_stdout=False, print_stderr=False, wait=True, **kwargs)
+       print_stdout=False, print_stderr=False, wait=True,
+       interactive=False, **kwargs)
 ```
 
 `Process` is generic over `AnyStr`: use `text=True` to get a `Process[str]` where `.stdout`/`.stderr` return `str`, or `text=False` (default) to get a `Process[bytes]` where they return `bytes`. The module-level `shell` convenience object defaults to `text=True`.
@@ -117,6 +118,7 @@ Process(program, *args,
 - `print_stdout`: Print stdout to console during execution (default: `False`)
 - `print_stderr`: Print stderr to console during execution (default: `False`)
 - `wait`: Block until process completes after `execute()` (default: `True`); set to `False` to start without blocking, then call `.wait()` explicitly
+- `interactive`: Connect stdin/stdout/stderr directly to the parent terminal (default: `False`); enables real-time interaction with programs like REPLs, editors, or prompts — incompatible with `stdin=str/bytes`
 - `**kwargs`: Additional subprocess arguments
 
 #### Methods
@@ -223,6 +225,30 @@ with Process("sleep", "10", wait=False) as p:
 pipeline = (shell.echo("hello") | shell.wc("-c")).execute()
 print(f"Pipeline took {pipeline.execution_time:.3f}s")
 ```
+
+### Interactive Mode
+
+Use `interactive=True` to connect a process directly to the parent terminal, allowing
+real-time interaction. This is useful for programs that need a real TTY: REPLs,
+editors, pagers, or any prompt-driven tool.
+
+```python
+from shello import Process
+
+# Launch a Python REPL — the user can type interactively
+Process("python3", interactive=True).execute()
+
+# Open a file in vim
+Process("vim", "notes.txt", interactive=True).execute()
+
+# Run an interactive shell command
+Process("bash", "-i", interactive=True).execute()
+```
+
+When `interactive=True`:
+- stdin/stdout/stderr are inherited directly from the parent process (no capturing)
+- `.stdout` and `.stderr` return empty bytes/str after execution
+- Passing `stdin=str` or `stdin=bytes` raises `InvalidArgument` (no pipe is created)
 
 ## Development
 

@@ -52,6 +52,6 @@ Add an `interactive` parameter to `Process` that connects stdin/stdout/stderr di
 
 ### Task 4: Update documentation
 
-- [ ] Add `interactive` parameter to the `Process` constructor docs in `README.md`
-- [ ] Add an "Interactive Mode" example section to `README.md`
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Add `interactive` parameter to the `Process` constructor docs in `README.md`
+- [x] Add an "Interactive Mode" example section to `README.md`
+- [x] Move this plan to `docs/plans/completed/`
