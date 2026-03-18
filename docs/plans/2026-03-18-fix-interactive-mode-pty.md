@@ -65,9 +65,9 @@ Fix: extract all interactive-mode logic into a new `InteractiveProcess` class in
 
 ### Task 4: Verify acceptance criteria
 
-- [ ] Run `uv run pytest` (full test suite)
-- [ ] Run `uv run pyright`
-- [ ] Verify test coverage ≥ 80%
+- [x] Run `uv run pytest` (full test suite)
+- [x] Run `uv run pyright`
+- [x] Verify test coverage ≥ 80%
 
 ### Task 5: Update documentation
 

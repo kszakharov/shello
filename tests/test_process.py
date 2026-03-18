@@ -660,3 +660,44 @@ class TestInteractiveProcessBasic:
 
         assert result.state == ProcessState.TERMINATED
         assert result.returncode == -signal.SIGTERM
+
+    def test_execute_twice_raises(self):
+        """Test that calling execute() twice raises InvalidOperation."""
+        process = InteractiveProcess("true")
+        process.execute()
+
+        with pytest.raises(InvalidOperation):
+            process.execute()
+
+    def test_wait_without_execute_raises(self):
+        """Test that calling wait() without execute() raises InvalidOperation."""
+        process = InteractiveProcess("true")
+
+        with pytest.raises(InvalidOperation, match="not started"):
+            process.wait()
+
+
+class TestProcessStrRepr:
+    """Test __str__ and __repr__ representations."""
+
+    def test_stderr_repr(self):
+        """Test that STDERR sentinel has a readable repr."""
+        assert repr(STDERR) == "STDERR"
+
+    def test_str_with_stdin_path(self):
+        """Test __str__ includes stdin path redirection."""
+        p = Process("cat", stdin=Path("/tmp/foo"))
+        s = str(p)
+        assert "< /tmp/foo" in s
+
+    def test_str_with_stdout_devnull(self):
+        """Test __str__ includes stdout devnull redirection."""
+        p = Process("echo", stdout=DEVNULL)
+        s = str(p)
+        assert "> /dev/null" in s
+
+    def test_str_with_timeout(self):
+        """Test __str__ includes timeout info."""
+        p = Process("echo", timeout=5)
+        s = str(p)
+        assert "[timeout: 5s]" in s
