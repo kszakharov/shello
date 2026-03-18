@@ -2,10 +2,10 @@
 
 import signal
 import time
+import os
+from pathlib import Path
 
 import pytest
-
-import os
 
 from shello import DEVNULL, STDERR, STDOUT, Process, InvalidArgument, InvalidOperation, UnexpectedExitCodeError
 from shello.exceptions import ProcessError, TimeoutError
@@ -528,6 +528,16 @@ class TestInteractiveMode:
         with pytest.raises(InvalidArgument):
             Process("cat", interactive=True, stdin="data")  # type: ignore[arg-type]
 
+    def test_interactive_stdin_path_raises(self):
+        """Test that interactive=True with stdin=Path raises InvalidArgument at construction."""
+        with pytest.raises(InvalidArgument):
+            Process("cat", interactive=True, stdin=Path("/dev/null"))
+
+    def test_interactive_stdin_fd_raises(self):
+        """Test that interactive=True with stdin as int fd raises InvalidArgument at construction."""
+        with pytest.raises(InvalidArgument):
+            Process("cat", interactive=True, stdin=0)  # 0 is stdin fd
+
     def test_interactive_stdout_is_empty_bytes(self):
         """Test that interactive=True leaves stdout as empty bytes after execution."""
         process = Process("true", interactive=True)
@@ -555,4 +565,12 @@ class TestInteractiveMode:
         process.execute()
 
         assert process.returncode == 1
+
+    def test_interactive_text_mode_stdout_is_empty_str(self):
+        """Test that interactive=True with text=True leaves stdout as empty str after execution."""
+        process = Process("true", interactive=True, text=True)
+        process.execute()
+
+        assert process.stdout == ""
+        assert isinstance(process.stdout, str)
 

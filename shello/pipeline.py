@@ -112,6 +112,9 @@ class Pipeline:
         if process._stdout_destination not in (None, subprocess.PIPE):
             raise InvalidOperation("Process stdout already configured")
 
+        if process.interactive:
+            raise InvalidOperation("Interactive processes cannot be used in a pipeline")
+
         if process.is_started:
             raise InvalidOperation("Process has already been executed")
 
@@ -155,8 +158,6 @@ class Pipeline:
         Raises:
             InvalidOperation: If the pipeline has not fully executed.
         """
-        if not self.is_done:
-            raise InvalidOperation("Pipeline not fully executed")
         return not self.is_successful
 
     @property

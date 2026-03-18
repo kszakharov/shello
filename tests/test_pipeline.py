@@ -124,16 +124,17 @@ class TestPipeline:
         # Should return a number (even if 0)
         assert result.stdout.strip().isdigit()
 
-    def test_pipeline_with_failing_command(self):
-        """Test pipeline where one command fails."""
-        # First command succeeds, second fails
+    def test_pipeline_with_failing_command_raises(self):
+        """Test pipeline where last command fails with check=True raises UnexpectedExitCodeError."""
+        from shello.exceptions import UnexpectedExitCodeError
+
         first = Process("echo", "test")
-        second = Process("false", check=False)  # Always fails
+        second = Process("false")  # check=True by default
 
         pipeline = first | second
 
-        result = pipeline.execute()
-        assert result.returncode == 1  # Should fail with exit code 1
+        with pytest.raises(UnexpectedExitCodeError):
+            pipeline.execute()
 
     def test_pipeline_with_failing_command_no_check(self):
         """Test pipeline with failing command but check=False."""
@@ -159,3 +160,8 @@ class TestPipeline:
         """Test that execution_time returns None before execution."""
         pipeline = Process("echo", "hi") | Process("wc", "-c")
         assert pipeline.execution_time is None
+
+    def test_pipeline_rejects_interactive_process(self):
+        """Test that adding an interactive process to a pipeline raises InvalidOperation."""
+        with pytest.raises(InvalidOperation, match="Interactive processes cannot be used in a pipeline"):
+            _ = Process("echo", "hello") | Process("cat", interactive=True)

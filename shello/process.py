@@ -144,7 +144,7 @@ class Process(Generic[AnyStr]):
             print_stderr: Whether to print stderr to console during execution (default: False)
             wait: Whether to wait for process to complete before returning
             interactive: Whether to connect stdin/stdout/stderr directly to the parent terminal,
-                allowing real-time interaction. Incompatible with stdin=str/bytes.
+                allowing real-time interaction. Incompatible with any non-None stdin.
             **kwargs: Additional arguments passed to subprocess
         """
         self.program = program
@@ -166,8 +166,8 @@ class Process(Generic[AnyStr]):
         self.interactive = interactive
         self.kwargs = kwargs
 
-        if interactive and isinstance(stdin, (str, bytes)):
-            raise InvalidArgument("interactive=True is incompatible with stdin=str/bytes (no pipe to write to)")
+        if interactive and stdin is not None:
+            raise InvalidArgument("interactive=True is incompatible with a configured stdin (stdin must be None)")
 
         # Runtime state
         self._process: subprocess.Popen | None = None
@@ -262,8 +262,6 @@ class Process(Generic[AnyStr]):
 
         if self._wait:
             self.wait()
-
-        self._check_exception()
 
         return self
 
@@ -486,13 +484,14 @@ class Process(Generic[AnyStr]):
 
     def _cleanup_resources(self) -> None:
         """Close all opened file handles."""
-        for handle in self._opened_handles:
+        for handle in getattr(self, "_opened_handles", []):
             try:
                 if not handle.closed:
                     handle.close()
             except Exception as e:
                 logger.warning("%s: failed to close file handle: %s", self.program, e)
-        self._opened_handles.clear()
+        if hasattr(self, "_opened_handles"):
+            self._opened_handles.clear()
 
     def __enter__(self) -> Self:
         """Enter the context manager. Does not execute the process."""
