@@ -96,12 +96,18 @@ class InteractiveProcess(Process):
 
         old_settings = None
 
-        # Determine whether stdin has a real file descriptor (not available in pytest etc.)
+        # Determine whether stdin/stdout have real file descriptors (not available in pytest etc.)
         stdin_fd: int | None = None
         try:
             stdin_fd = sys.stdin.fileno()
         except (io.UnsupportedOperation, AttributeError):
             stdin_fd = None
+
+        stdout_fd: int | None = None
+        try:
+            stdout_fd = sys.stdout.fileno()
+        except (io.UnsupportedOperation, AttributeError):
+            stdout_fd = None
 
         try:
             if stdin_fd is not None:
@@ -128,10 +134,11 @@ class InteractiveProcess(Process):
                         break
                     if not data:
                         break
-                    try:
-                        os.write(sys.stdout.fileno(), data)
-                    except (OSError, Exception):
-                        pass
+                    if stdout_fd is not None:
+                        try:
+                            os.write(stdout_fd, data)
+                        except OSError:
+                            pass
 
                 if stdin_fd is not None and stdin_fd in r:
                     try:
