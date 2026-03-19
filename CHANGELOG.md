@@ -25,7 +25,7 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
-- `shello/decorators.py` (unused internal module)
+- `eintr_retry` decorator from `shello/decorators.py` (unused internal helper)
 
 ## [0.2.0] - 2026-03-08
 
