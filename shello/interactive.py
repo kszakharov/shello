@@ -196,7 +196,7 @@ class InteractiveProcess(Process):
     def returncode(self) -> int:
         """Get process return code from PTY wait."""
         if self.state is not ProcessState.TERMINATED:
-            raise InvalidOperation("Process not executed")
+            raise InvalidOperation("Process not yet terminated")
         if self._pty_returncode is None:
             raise InvalidOperation("Process return code not available")
         return self._pty_returncode
