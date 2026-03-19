@@ -72,9 +72,11 @@ class InteractiveProcess(Process):
             os._exit(127)
 
         # Parent process
-        self._pty_pid = pid
-        self.start_time = time.time()
-        self.state = ProcessState.RUNNING
+        with self._lock:
+            self._pty_pid = pid
+            self.start_time = time.time()
+            self._state = ProcessState.RUNNING
+            logger.debug("%s: process state change: %s -> %s", self.program, ProcessState.SPAWNING, ProcessState.RUNNING)
 
         t = threading.Thread(
             target=self._background_monitor_pty,
@@ -118,7 +120,7 @@ class InteractiveProcess(Process):
                     old_settings = None
 
             select_reads: list[int] = [master_fd]
-            if stdin_fd is not None:
+            if stdin_fd is not None and os.isatty(stdin_fd):
                 select_reads.append(stdin_fd)
 
             while True:
