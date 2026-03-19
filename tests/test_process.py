@@ -1,13 +1,13 @@
 """Test Process class."""
 
+import os
 import signal
 import time
-import os
 from pathlib import Path
 
 import pytest
 
-from shello import DEVNULL, STDERR, STDOUT, Process, InvalidArgument, InvalidOperation, UnexpectedExitCodeError
+from shello import DEVNULL, STDERR, STDOUT, InvalidArgument, InvalidOperation, Process, UnexpectedExitCodeError
 from shello.exceptions import ProcessError, TimeoutError
 from shello.interactive import InteractiveProcess
 from shello.process import ProcessState
@@ -439,7 +439,8 @@ def test_stderr_constant_stdout_not_captured():
     not to a capture pipe. So captured stdout should be empty.
     """
     process = Process(
-        "echo", "hello",
+        "echo",
+        "hello",
         stdout=STDERR,
         capture_stdout=False,
         capture_stderr=True,
@@ -452,6 +453,7 @@ def test_stderr_constant_stdout_not_captured():
 def test_stderr_constant_is_exported_from_shello():
     """Test that STDERR is importable from shello."""
     import shello
+
     assert hasattr(shello, "STDERR")
     assert shello.STDERR is STDERR
 
@@ -633,7 +635,9 @@ class TestInteractiveProcessBasic:
         """Test that InteractiveProcess passes env vars to the child process."""
         # sh -c 'test -n "$TEST_VAR"' exits 0 if TEST_VAR is non-empty
         process = InteractiveProcess(
-            "sh", "-c", 'test -n "$TEST_VAR"',
+            "sh",
+            "-c",
+            'test -n "$TEST_VAR"',
             env={"TEST_VAR": "hello", "PATH": os.environ.get("PATH", "/usr/bin:/bin")},
         )
         result = process.execute()
@@ -675,6 +679,22 @@ class TestInteractiveProcessBasic:
 
         with pytest.raises(InvalidOperation, match="not started"):
             process.wait()
+
+    def test_pty_stdout_raises(self):
+        """Test that accessing stdout on InteractiveProcess raises InvalidOperation."""
+        process = InteractiveProcess("true")
+        process.execute()
+
+        with pytest.raises(InvalidOperation, match="not captured"):
+            _ = process.stdout
+
+    def test_pty_stderr_raises(self):
+        """Test that accessing stderr on InteractiveProcess raises InvalidOperation."""
+        process = InteractiveProcess("true")
+        process.execute()
+
+        with pytest.raises(InvalidOperation, match="not captured"):
+            _ = process.stderr
 
 
 class TestProcessStrRepr:

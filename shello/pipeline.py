@@ -36,7 +36,7 @@ class Pipeline:
         self.processes = list(processes)
         self._wait = wait
 
-    def __or__(self, other) -> "Pipeline":
+    def __or__(self, other) -> Pipeline:
         """Support shell-style pipeline operator: Pipeline(...) | Process(...).
 
         Enables chaining processes onto existing pipelines using the | operator.
@@ -228,7 +228,9 @@ class Pipeline:
             logger.debug("%s: waiting for process (state=%s)", process, process.state)
             try:
                 process.wait()
-                logger.info("%s: process completed (exit_code=%s, state=%s)", process, process.returncode, process.state)
+                logger.info(
+                    "%s: process completed (exit_code=%s, state=%s)", process, process.returncode, process.state
+                )
             except TimeoutError:
                 logger.debug("%s: process timed out (state=%s)", process, process.state)
                 raise

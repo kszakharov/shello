@@ -1,6 +1,7 @@
 """Test Shell factory class."""
 
 from shello import Process, Shell
+from shello.interactive import InteractiveProcess
 
 
 class TestShell:
@@ -85,3 +86,28 @@ class TestShell:
         assert isinstance(process, Process)
         assert process.program == "echo"
         assert process.args == []
+
+    def test_shell_interactive_true_returns_interactive_process(self):
+        """Test that Shell with interactive=True returns InteractiveProcess."""
+        shell = Shell()
+        process = shell("echo", "hello", interactive=True)
+
+        assert isinstance(process, InteractiveProcess)
+        assert process.program == "echo"
+        assert process.args == ["hello"]
+
+    def test_shell_getattr_interactive_true_returns_interactive_process(self):
+        """Test that Shell.__getattr__ with interactive=True returns InteractiveProcess."""
+        shell = Shell()
+        process = shell.echo("hello", interactive=True)
+
+        assert isinstance(process, InteractiveProcess)
+        assert process.program == "echo"
+
+    def test_shell_default_interactive_false(self):
+        """Test that Shell default interactive=False returns Process."""
+        shell = Shell()
+        process = shell("echo", "hello")
+
+        assert isinstance(process, Process)
+        assert not isinstance(process, InteractiveProcess)

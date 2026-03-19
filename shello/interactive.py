@@ -65,8 +65,10 @@ class InteractiveProcess(Process):
                 cmd = [self.program] + self.args
                 env = self.env if self.env is not None else os.environ
                 os.execvpe(self.program, cmd, env)
-            except Exception:
-                pass
+            except Exception as e:
+                import sys as _sys
+                _sys.stderr.write(f"InteractiveProcess child error: {e}\n")
+                _sys.stderr.flush()
             os._exit(127)
 
         # Parent process
@@ -161,6 +163,16 @@ class InteractiveProcess(Process):
             self.end_time = time.time()
 
     @property
+    def stdout(self) -> str | bytes:
+        """Not available for interactive PTY processes."""
+        raise InvalidOperation("stdout is not captured in interactive PTY mode")
+
+    @property
+    def stderr(self) -> str | bytes:
+        """Not available for interactive PTY processes."""
+        raise InvalidOperation("stderr is not captured in interactive PTY mode")
+
+    @property
     def returncode(self) -> int:
         """Get process return code from PTY wait."""
         if self.state is not ProcessState.TERMINATED:
@@ -181,7 +193,10 @@ class InteractiveProcess(Process):
                 raise InvalidOperation("Process not executed")
             if self._pty_pid is None:
                 raise InvalidOperation("Process not available for killing")
-            os.kill(self._pty_pid, signal)
+            try:
+                os.kill(self._pty_pid, signal)
+            except OSError:
+                pass
 
     def wait(self) -> Self:
         """Wait for PTY process completion."""
