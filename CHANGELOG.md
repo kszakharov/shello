@@ -2,11 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreliased]
+## [Unreleased]
 
 ### Added
 
 - Support for Python 3.15
+- Interactive mode via `InteractiveProcess` with PTY allocation (`interactive=True` on `Shell`)
+- Context manager support for `Process` (`with shell.cmd() as p:`)
+- `Pipeline.execution_time` property for timing pipeline runs
+- `STDERR` sentinel constant for redirecting stdout to stderr
+- Export `InvalidOperation` and `UnexpectedExitCodeError` from the public API (`shello`)
+
+### Changed
+
+- CI: Moved `.deb` build to a separate reusable workflow (`.github/workflows/deb.yml`)
+- Improved logging in silent failure paths
+
+### Fixed
+
+- `check_fd()` logic bug
+- Pyright type errors; added `AnyStr` generics to `Process`
+
+### Removed
+
+- `shello/decorators.py` (unused internal module)
 
 ## [0.2.0] - 2026-03-08
 
