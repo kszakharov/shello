@@ -155,11 +155,19 @@ class InteractiveProcess(Process):
                 os.close(master_fd)
             except OSError:
                 pass
-            try:
-                _, status = os.waitpid(self._pty_pid, 0)  # type: ignore[arg-type]
-                self._pty_returncode = os.waitstatus_to_exitcode(status)
-            except ChildProcessError:
-                self._pty_returncode = -1
+            while True:
+                try:
+                    _, status = os.waitpid(self._pty_pid, 0)  # type: ignore[arg-type]
+                    self._pty_returncode = os.waitstatus_to_exitcode(status)
+                    break
+                except InterruptedError:
+                    continue
+                except ChildProcessError:
+                    self._pty_returncode = -1
+                    break
+                except OSError:
+                    self._pty_returncode = -1
+                    break
             self.end_time = time.time()
 
     @property

@@ -230,26 +230,26 @@ print(f"Pipeline took {pipeline.execution_time:.3f}s")
 
 Use `interactive=True` to run a process with a real pseudo-terminal (PTY), allowing
 full interaction with programs that require a TTY: REPLs, editors, SSH, pagers, or
-any prompt-driven tool.
+any prompt-driven tool. Requires a Unix-like OS (Linux, macOS) — not available on Windows.
 
 ```python
-from shello import Process
+from shello import shell
 
 # Launch a Python REPL — the user can type interactively
-Process("python3", interactive=True).execute()
+shell("python3", interactive=True).execute()
 
 # Open a file in vim
-Process("vim", "notes.txt", interactive=True).execute()
+shell("vim", "notes.txt", interactive=True).execute()
 
 # SSH to a remote host with full terminal support
-Process("ssh", "user@host", interactive=True).execute()
+shell("ssh", "user@host", interactive=True).execute()
 
 # Run an interactive shell command
-Process("bash", "-i", interactive=True).execute()
+shell("bash", "-i", interactive=True).execute()
 ```
 
 When `interactive=True`:
-- A real PTY is allocated via `pty.fork()` so the child program sees a terminal
+- `shell(...)` returns an `InteractiveProcess` that forks with a real PTY via `pty.fork()`
 - I/O is proxied between the parent terminal and the child's PTY
 - Programs that require a real TTY (e.g. SSH raw mode, terminal editors) work correctly
 - `.stdout` and `.stderr` are not captured and will raise `InvalidOperation` if accessed

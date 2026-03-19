@@ -646,8 +646,8 @@ class TestInteractiveProcessBasic:
 
     def test_interactive_pty_cwd(self):
         """Test that InteractiveProcess respects the cwd parameter."""
-        # pwd exits 0 regardless; we just verify successful execution with cwd set
-        process = InteractiveProcess("pwd", cwd="/tmp")
+        # sh -c 'test "$(pwd)" = /tmp' exits 0 only when cwd is /tmp
+        process = InteractiveProcess("sh", "-c", 'test "$(pwd)" = /tmp', cwd="/tmp")
         result = process.execute()
 
         assert result.returncode == 0
@@ -695,6 +695,39 @@ class TestInteractiveProcessBasic:
 
         with pytest.raises(InvalidOperation, match="not captured"):
             _ = process.stderr
+
+    def test_pty_waitpid_oserror_sets_returncode_minus1(self):
+        """Test that OSError from os.waitpid results in returncode -1."""
+        import unittest.mock as mock
+
+        process = InteractiveProcess("true", check=False)
+        with mock.patch("shello.interactive.os.waitpid", side_effect=OSError("unexpected")):
+            process.execute()
+
+        assert process.state == ProcessState.TERMINATED
+        assert process.returncode == -1
+
+    def test_pty_waitpid_interrupted_then_succeeds(self):
+        """Test that InterruptedError from os.waitpid causes a retry."""
+        import unittest.mock as mock
+
+        call_count = 0
+        real_waitpid = os.waitpid
+
+        def waitpid_once_interrupted(pid, options):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise InterruptedError()
+            return real_waitpid(pid, options)
+
+        process = InteractiveProcess("true")
+        with mock.patch("shello.interactive.os.waitpid", side_effect=waitpid_once_interrupted):
+            process.execute()
+
+        assert process.state == ProcessState.TERMINATED
+        assert process.returncode == 0
+        assert call_count == 2
 
 
 class TestProcessStrRepr:
