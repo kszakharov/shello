@@ -43,5 +43,5 @@ Update CHANGELOG.md to document all notable changes made since v0.2.0 that are n
 
 ### Task 2: Verify and complete
 
-- [ ] Review CHANGELOG.md for formatting consistency with prior version entries
-- [ ] Move this plan to `docs/plans/completed/`
+- [x] Review CHANGELOG.md for formatting consistency with prior version entries
+- [x] Move this plan to `docs/plans/completed/`
