@@ -91,7 +91,10 @@ class InteractiveProcess(Process):
 
         return self
 
-    @with_callback(on_done=lambda self: cast("InteractiveProcess", self)._task_done())
+    @with_callback(
+        on_done=lambda self: cast("InteractiveProcess", self)._task_done(),
+        on_error=lambda self, e: setattr(cast("InteractiveProcess", self), "_exception", e),
+    )
     def _background_monitor_pty(self, master_fd: int) -> None:
         """PTY proxy: relay I/O between the terminal and the child process."""
         import io
