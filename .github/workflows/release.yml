@@ -83,5 +83,4 @@ jobs:
           body: ${{ steps.changelog.outputs.release_notes }}
           files: dist/*.deb
           generate_release_notes: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
