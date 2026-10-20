@@ -1,4 +1,6 @@
-# ![Shello logo](https://raw.githubusercontent.com/kszakharov/shello/refs/heads/main/assets/shello-logo.svg)
+![Shello logo](https://raw.githubusercontent.com/kszakharov/shello/refs/heads/main/assets/shello-logo.svg)
+
+---
 
 [![Tests](https://github.com/kszakharov/shello/actions/workflows/ci.yml/badge.svg)](https://github.com/kszakharov/shello/actions/workflows/ci.yml)
 [![Version](https://img.shields.io/pypi/v/shello)](https://pypi.org/project/shello)
