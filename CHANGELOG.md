@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreliased]
+## [Unreleased]
 
 ### Added
 
@@ -32,3 +32,7 @@ All notable changes to this project will be documented in this file.
 - Text and binary mode shell variants
 - Full type hints for Python 3.12+
 - Comprehensive test suite with CI/CD
+
+[Unreleased]: https://github.com/kszakharov/shello/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kszakharov/shello/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/kszakharov/shello/releases/tag/v0.1.0
