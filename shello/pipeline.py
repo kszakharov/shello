@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 from shello.exceptions import InvalidOperation, ProcessError, TimeoutError
 
 if TYPE_CHECKING:
+    from shello.command import Command
     from shello.process import Process
 
 
@@ -17,43 +18,47 @@ logger = logging.getLogger(__name__)
 
 
 class Pipeline:
-    """Class representing a pipeline of processes."""
+    """Class representing a pipeline of commands."""
 
-    def __init__(self, *processes: Process, wait: bool = True) -> None:
-        """Initialize Pipeline with a sequence of Process objects.
+    def __init__(self, *commands: Command, wait: bool = True) -> None:
+        """Initialize Pipeline with a sequence of Command objects.
 
         Args:
-            *processes: Process instances to form the pipeline
+            *commands: Command instances to form the pipeline
             wait: Whether to wait for all processes to complete (default: True)
         """
-        if len(processes) < 2:
-            raise ValueError("Pipeline requires at least two processes")
 
-        self.validate(processes[0], first=True)
-        for proc in processes[1:]:
-            self.validate(proc, first=False)
+        if len(commands) < 2:
+            raise ValueError("Pipeline requires at least two commands")
 
-        self.processes = list(processes)
-        self._wait = wait
+        self.validate(commands[0], first=True)
+        for command in commands[1:]:
+            self.validate(command, first=False)
+
+        self.commands: list[Command] = list(commands)
+        self._wait: bool = wait
+
+        self.processes: list[Process] = list()
 
     def __or__(self, other) -> Self:
-        """Support shell-style pipeline operator: Pipeline(...) | Process(...).
+        """Support shell-style pipeline operator: Pipeline(...) | Command(...).
 
-        Enables chaining processes onto existing pipelines using the | operator.
-        Validates that the other operand is a Process instance.
+        Enables chaining command onto existing pipelines using the | operator.
+        Validates that the other operand is a Command instance.
 
         Args:
-            other: Process instance to append to the pipeline.
+            other: Command instance to append to the pipeline.
 
         Returns:
-            The pipeline instance with the new process added.
+            The pipeline instance with the new command added.
 
         Raises:
-            TypeError: If other is not a Process instance.
+            TypeError: If other is not a Command instance.
         """
-        from shello.process import Process
 
-        if not isinstance(other, Process):
+        from shello.command import Command
+
+        if not isinstance(other, Command):
             return NotImplemented
 
         self.add(other)
@@ -63,9 +68,9 @@ class Pipeline:
         """String representation of the pipeline.
 
         Returns:
-            Shell-style pipeline string with processes joined by |.
+            Shell-style pipeline string with commands joined by |.
         """
-        return " | ".join(str(proc) for proc in self.processes)
+        return " | ".join(str(command) for command in self.commands)
 
     def __repr__(self) -> str:
         """Detailed representation of the pipeline.
@@ -73,47 +78,46 @@ class Pipeline:
         Returns:
             Python representation showing Pipeline constructor call.
         """
-        return f"Pipeline({', '.join(repr(proc) for proc in self.processes)})"
+        return f"Pipeline({', '.join(repr(command) for command in self.commands)})"
 
-    def add(self, process: Process) -> None:
-        """Add a Process to the pipeline.
+    def add(self, command: Command) -> None:
+        """Add a Command to the pipeline.
 
-        Validates the process can be added (not already executed, proper I/O configuration)
-        and appends it to the pipeline's process list.
+        Validates the command can be added (proper I/O configuration)
+        and appends it to the pipeline's command list.
 
         Args:
-            process: Process instance to add.
+            command: Command instance to add.
 
         Raises:
-            InvalidOperation: If process is already executed or has invalid I/O configuration.
+            InvalidOperation: If command has invalid I/O configuration.
         """
-        self.validate(process, first=False)
-        self.processes.append(process)
+
+        self.validate(command, first=False)
+        self.commands.append(command)
 
     @staticmethod
-    def validate(process: Process, first: bool) -> None:
-        """Validate that the process can be added to the pipeline.
+    def validate(command: Command, first: bool) -> None:
+        """Validate that the command can be added to the pipeline.
 
-        Ensures the process hasn't been executed and has proper I/O configuration
-        for pipeline chaining. Non-first processes can't have stdin configured,
-        and no process can have stdout configured (will be set to PIPE).
+        Ensures the command has proper I/O configuration for pipeline chaining.
+        Non-first command can't have stdin configured,
+        and no command can have stdout configured (will be set to PIPE).
 
         Args:
-            process: Process instance to validate.
-            first: Whether this is the first process in the pipeline.
+            command: Command instance to validate.
+            first: Whether this is the first command in the pipeline.
 
         Raises:
-            InvalidOperation: If process has invalid configuration for pipeline.
+            InvalidOperation: If command has invalid configuration for pipeline.
         """
+
         if not first:
-            if process._stdin_source not in (None, subprocess.PIPE):
-                raise InvalidOperation("Process stdin already configured")
+            if command._stdin_source not in (None, subprocess.PIPE):
+                raise InvalidOperation("Command stdin already configured")
 
-        if process._stdout_destination not in (None, subprocess.PIPE):
-            raise InvalidOperation("Process stdout already configured")
-
-        if process.is_started:
-            raise InvalidOperation("Process has already been executed")
+        if command._stdout_destination not in (None, subprocess.PIPE):
+            raise InvalidOperation("Command stdout already configured")
 
     @property
     def stdout(self) -> str | bytes:
@@ -154,10 +158,10 @@ class Pipeline:
         return not self.is_successful
 
     def execute(self) -> Self:
-        """Execute the pipeline of processes.
+        """Execute the pipeline of commands.
 
-        Configures each process to pipe stdout to stdin of the next process,
-        starts all processes, and optionally waits for completion.
+        Configures each command to pipe stdout to stdin of the next command,
+        starts all commands, and optionally waits for completion.
         The last process captures stdout, intermediate processes don't.
 
         Returns:
@@ -167,16 +171,18 @@ class Pipeline:
             ProcessError: If any process fails to execute.
             TimeoutError: If any process times out.
         """
+
         prev_stdout = None
 
-        for process in self.processes:
-            process._wait = False
-            process.capture_stdout = False if process is not self.processes[-1] else process.capture_stdout
-            process._stdin_source = prev_stdout if process is not self.processes[0] else process._stdin_source
-            process.check = False if process is not self.processes[-1] else process.check
-            process._stdout_destination = subprocess.PIPE
+        for command in self.commands:
+            command.wait = False
+            command.capture_stdout = False if command is not self.commands[-1] else command.capture_stdout
+            command._stdin_source = prev_stdout if command is not self.commands[0] else command._stdin_source
+            command.check = False if command is not self.commands[-1] else command.check
+            command._stdout_destination = subprocess.PIPE
 
-            process.execute()
+            process = command.execute()
+            self.processes.append(process)
 
             if prev_stdout is not None:
                 prev_stdout.close()

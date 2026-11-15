@@ -2,7 +2,7 @@
 
 import pytest
 
-from shello import DEVNULL, Pipeline, Process, shell
+from shello import DEVNULL, Pipeline, Command, shell
 from shello.exceptions import InvalidOperation
 
 
@@ -11,8 +11,8 @@ class TestPipeline:
 
     def test_simple_pipeline(self):
         """Test simple pipeline: echo hello | wc -c."""
-        echo_cmd = Process("echo", "hello")
-        wc_cmd = Process("wc", "-c")
+        echo_cmd = Command("echo", "hello")
+        wc_cmd = Command("wc", "-c")
 
         pipeline = echo_cmd | wc_cmd
         result = pipeline.execute()
@@ -32,8 +32,8 @@ class TestPipeline:
     def test_pipeline_stderr_capture(self):
         """Test pipeline stderr capture."""
         # Command that outputs to stderr, then pipe to another command
-        first_cmd = Process("sh", "-c", "echo 'error' >&2; echo 'output'")
-        second_cmd = Process("wc", "-c")
+        first_cmd = Command("sh", "-c", "echo 'error' >&2; echo 'output'")
+        second_cmd = Command("wc", "-c")
 
         pipeline = first_cmd | second_cmd
         result = pipeline.execute()
@@ -46,7 +46,7 @@ class TestPipeline:
 
     def test_pipeline_chaining(self):
         """Test chaining multiple processes."""
-        pipeline = Process("echo", "a b c") | Process("tr", " ", "\n") | Process("wc", "-l")
+        pipeline = Command("echo", "a b c") | Command("tr", " ", "\n") | Command("wc", "-l")
         result = pipeline.execute()
 
         assert result.returncode == 0
@@ -54,8 +54,8 @@ class TestPipeline:
 
     def test_pipeline_with_stdin(self):
         """Test pipeline with stdin input to first process."""
-        first_cmd = Process("wc", "-c", stdin=b"hello world")
-        second_cmd = Process("tr", "-d", " ")
+        first_cmd = Command("wc", "-c", stdin=b"hello world")
+        second_cmd = Command("tr", "-d", " ")
 
         pipeline = first_cmd | second_cmd
         result = pipeline.execute()
@@ -66,23 +66,23 @@ class TestPipeline:
 
     def test_pipeline_already_configured_stdout(self):
         """Test that pipeline fails if first process stdout already configured."""
-        first_cmd = Process("echo", "hello", stdout=DEVNULL)  # Configured stdout
-        second_cmd = Process("wc", "-c")
+        first_cmd = Command("echo", "hello", stdout=DEVNULL)  # Configured stdout
+        second_cmd = Command("wc", "-c")
 
         with pytest.raises(InvalidOperation, match="stdout already configured"):
             first_cmd | second_cmd
 
     def test_pipeline_already_configured_stdin(self):
         """Test that pipeline fails if second process stdin already configured."""
-        first_cmd = Process("echo", "hello")
-        second_cmd = Process("wc", "-c", stdin="test")  # Configured stdin
+        first_cmd = Command("echo", "hello")
+        second_cmd = Command("wc", "-c", stdin="test")  # Configured stdin
 
         with pytest.raises(InvalidOperation, match="stdin already configured"):
             first_cmd | second_cmd
 
     def test_pipeline_with_non_process(self):
-        """Test that pipeline fails with non-Process object."""
-        process = Process("echo", "hello")
+        """Test that pipeline fails with non-Command object."""
+        process = Command("echo", "hello")
 
         with pytest.raises(TypeError):
             process | "not a process"
@@ -90,8 +90,8 @@ class TestPipeline:
     def test_pipeline_execution_order(self):
         """Test that pipeline maintains execution order."""
         # Create a pipeline that produces different outputs based on order
-        first = Process("echo", "first")
-        second = Process("cat")
+        first = Command("echo", "first")
+        second = Command("cat")
 
         pipeline = first | second
         result = pipeline.execute()
@@ -101,17 +101,17 @@ class TestPipeline:
 
     def test_pipeline_return_value(self):
         """Test that pipeline returns the last process."""
-        first = Process("echo", "test")
-        second = Process("cat")
+        first = Command("echo", "test")
+        second = Command("cat")
 
         pipeline = first | second
         assert isinstance(pipeline, Pipeline)
-        assert pipeline.processes[-1] is second
+        assert pipeline.commands[-1] is second
 
     def test_pipeline_with_complex_commands(self):
         """Test pipeline with more complex shell commands."""
         # List files, filter for .py files, count them
-        pipeline = Process("ls", "-1") | Process("grep", r"\.py$") | Process("wc", "-l")
+        pipeline = Command("ls", "-1") | Command("grep", r"\.py$") | Command("wc", "-l")
         result = pipeline.execute()
 
         assert result.returncode == 0
@@ -121,8 +121,8 @@ class TestPipeline:
     def test_pipeline_with_failing_command(self):
         """Test pipeline where one command fails."""
         # First command succeeds, second fails
-        first = Process("echo", "test")
-        second = Process("false", check=False)  # Always fails
+        first = Command("echo", "test")
+        second = Command("false", check=False)  # Always fails
 
         pipeline = first | second
 
@@ -131,8 +131,8 @@ class TestPipeline:
 
     def test_pipeline_with_failing_command_no_check(self):
         """Test pipeline with failing command but check=False."""
-        first = Process("echo", "test")
-        second = Process("false", check=False)  # Don't raise on failure
+        first = Command("echo", "test")
+        second = Command("false", check=False)  # Don't raise on failure
 
         pipeline = first | second
         result = pipeline.execute()

@@ -5,181 +5,153 @@ import time
 
 import pytest
 
-from shello import DEVNULL, STDOUT, Process
+from shello import DEVNULL, STDOUT, Command
 from shello.exceptions import InvalidOperation, ProcessError, TimeoutError
 from shello.process import ProcessState
 
 
 class TestProcess:
-    """Test cases for Process class."""
+    """Test cases for Command class."""
 
     def test_simple_command(self):
         """Test basic command execution."""
-        process = Process("echo", "hello")
-        result = process.execute()
+        command = Command("echo", "hello")
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert result.stdout.decode().strip() == "hello"
-        assert result.stderr == ""
+        assert process.returncode == 0
+        assert process.stdout.decode().strip() == "hello"
+        assert process.stderr == ""
 
     def test_command_with_args(self):
         """Test command with multiple arguments."""
-        process = Process("echo", "hello", "world")
-        result = process.execute()
+        command = Command("echo", "hello", "world")
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert result.stdout.decode().strip() == "hello world"
+        assert process.returncode == 0
+        assert process.stdout.decode().strip() == "hello world"
 
     def test_command_not_found(self):
         """Test handling of non-existent command."""
-        process = Process("nonexistent_command_12345")
+        command = Command("nonexistent_command_12345")
 
         with pytest.raises(ProcessError):
-            process.execute()
+            command.execute()
 
     def test_nonzero_exit_code_no_check(self):
         """Test non-zero exit code with check=False."""
-        process = Process("false", check=False)
-        result = process.execute()
+        command = Command("false", check=False)
+        process = command.execute()
 
-        assert result.returncode == 1
-        assert result.stdout == ""
-        assert result.stderr == ""
+        assert process.returncode == 1
+        assert process.stdout == ""
+        assert process.stderr == ""
 
     def test_stderr_capture(self):
         """Test stderr capture."""
         # Command that outputs to stderr
-        process = Process("sh", "-c", "echo 'error message' >&2")
-        result = process.execute()
+        command = Command("sh", "-c", "echo 'error message' >&2")
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert result.stdout == ""
-        assert result.stderr.decode().strip() == "error message"
+        assert process.returncode == 0
+        assert process.stdout == ""
+        assert process.stderr.decode().strip() == "error message"
 
     def test_stdin_string(self):
         """Test stdin with string input."""
-        process = Process("wc", "-c", stdin=b"hello world")
-        result = process.execute()
+        command = Command("wc", "-c", stdin=b"hello world")
+        process = command.execute()
 
-        assert result.returncode == 0
+        assert process.returncode == 0
         # "hello world" has 11 characters
-        assert "11" in result.stdout.decode()
+        assert "11" in process.stdout.decode()
 
     def test_devnull_stdin(self):
         """Test DEVNULL stdin (default)."""
-        process = Process("wc", "-c", stdin=DEVNULL)
+        command = Command("wc", "-c", stdin=DEVNULL)
         with pytest.raises(ProcessError, match=f"Invalid file descriptor: {DEVNULL}"):
-            process.execute()
-
-        # Process should not have started
-        assert process.state == ProcessState.SPAWNING
+            command.execute()
 
     def test_devnull_stdout(self):
         """Test DEVNULL stdout."""
-        process = Process("echo", "hello", stdout=DEVNULL)
-        result = process.execute()
+        command = Command("echo", "hello", stdout=DEVNULL)
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert result.stdout == ""
+        assert process.returncode == 0
+        assert process.stdout == ""
 
     def test_stderr_to_stdout(self):
         """Test redirecting stderr to stdout."""
-        process = Process("sh", "-c", "echo 'error' >&2", stderr=STDOUT)
-        result = process.execute()
+        command = Command("sh", "-c", "echo 'error' >&2", stderr=STDOUT)
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert "error" in result.stdout.decode()
-        assert result.stderr == ""
+        assert process.returncode == 0
+        assert "error" in process.stdout.decode()
+        assert process.stderr == ""
 
     def test_process_attributes(self):
-        """Test process attributes and methods."""
-        process = Process("echo", "test")
-
-        # Before execution
-        assert process.state == ProcessState.PENDING
-        assert process.pid is None
-
-        process.execute()
+        """Test command attributes and methods."""
+        command = Command("echo", "test")
+        process = command.execute()
 
         # After execution
         assert process.state == ProcessState.TERMINATED
         assert process.returncode == 0
         assert process.pid is not None
-        assert str(process) == "echo test"
+        assert str(process.command) == "echo test"
         assert "Process" in repr(process)
 
     def test_double_execution_error(self):
-        """Test that executing same process twice raises error."""
-        process = Process("echo", "hello")
-        process.execute()
+        """Test that executing same command twice raises error."""
+        command = Command("echo", "hello")
+        process = command.execute()
 
         with pytest.raises(InvalidOperation, match="already executed"):
             process.execute()
 
-    def test_kill_unexecuted_process(self):
-        """Test killing unexecuted process raises error."""
-        process = Process("sleep", "1")
-
-        with pytest.raises(InvalidOperation, match="not executed"):
-            process.kill()
-
-    def test_wait_without_execution(self):
-        """Test wait without execution raises error."""
-        process = Process("echo", "test")
-
-        with pytest.raises(InvalidOperation):
-            process.wait()
-
-    def test_stdout_before_execution(self):
-        """Test accessing stdout before execution raises error."""
-        process = Process("echo", "test")
-
-        with pytest.raises(InvalidOperation, match="not executed"):
-            _ = process.stdout
-
     def test_invalid_stdin_type(self):
         """Test invalid stdin type raises error."""
-        process = Process("echo", stdin=12345)
+        command = Command("echo", stdin=12345)
 
         with pytest.raises(ProcessError, match="Invalid file descriptor: 12345"):
-            process.execute()
+            command.execute()
 
     def test_working_directory(self, tmp_path):
-        """Test running process in specific working directory."""
+        """Test running command in specific working directory."""
         test_file = tmp_path / "test.txt"
         test_file.write_text("hello")
 
         # Run ls in temp directory
-        process = Process("ls", cwd=tmp_path)
-        result = process.execute()
+        command = Command("ls", cwd=tmp_path)
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert "test.txt" in result.stdout.decode()
+        assert process.returncode == 0
+        assert "test.txt" in process.stdout.decode()
 
     def test_environment_variables(self):
         """Test setting environment variables."""
-        process = Process("sh", "-c", "echo $TEST_VAR", env={"TEST_VAR": "test_value"})
-        result = process.execute()
+        command = Command("sh", "-c", "echo $TEST_VAR", env={"TEST_VAR": "test_value"})
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert result.stdout.decode().strip() == "test_value"
+        assert process.returncode == 0
+        assert process.stdout.decode().strip() == "test_value"
 
     def test_timeout_no_timeout(self):
-        """Test timeout parameter when process completes within timeout."""
-        process = Process("echo", "hello", timeout=10.0)
-        result = process.execute()
+        """Test timeout parameter when command completes within timeout."""
+        command = Command("echo", "hello", timeout=10.0)
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert result.stdout.decode().strip() == "hello"
+        assert process.returncode == 0
+        assert process.stdout.decode().strip() == "hello"
 
     def test_timeout_exceeded(self):
-        """Test timeout when process exceeds timeout limit."""
-        process = Process("sleep", "2", timeout=0.1, ok_exitcodes=[-signal.SIGKILL])
+        """Test timeout when command exceeds timeout limit."""
+        command = Command("sleep", "2", timeout=0.1, ok_exitcodes=[-signal.SIGKILL], wait=False)
+        process = command.execute()
 
         with pytest.raises(TimeoutError):
-            process.execute()
+            process.wait()
 
-        # Process should be terminated
+        # Command should be terminated
         assert process.state == ProcessState.TERMINATED
         # Output should be empty for sleep command
         assert process.stdout == ""
@@ -187,64 +159,65 @@ class TestProcess:
 
     def test_timeout_none(self):
         """Test that timeout=None means no timeout (default behavior)."""
-        process = Process("sleep", "0.1", timeout=None)
-        result = process.execute()
+        command = Command("sleep", "0.1", timeout=None)
+        process = command.execute()
 
-        assert result.returncode == 0
-        assert result.execution_time >= 0.1  # Should have waited
+        assert process.returncode == 0
+        assert process.execution_time >= 0.1  # Should have waited
 
     def test_pipeline_timeout_source(self):
-        """Test timeout on the source process in a pipeline."""
-        pipeline = Process("sleep", "2", timeout=0.5) | Process("echo", "done")
+        """Test timeout on the source command in a pipeline."""
+        pipeline = Command("sleep", "2", timeout=0.5) | Command("echo", "done")
         pipeline.execute()
         assert pipeline.processes[0].state == ProcessState.TERMINATED
         assert pipeline.processes[0].returncode == -signal.SIGKILL
 
     def test_pipeline_timeout_sink(self):
-        """Test timeout on the sink process in a pipeline."""
-        pipeline = Process("echo", "hello") | Process("sleep", "2", timeout=0.5, ok_exitcodes=[-signal.SIGKILL])
+        """Test timeout on the sink command in a pipeline."""
+        pipeline = Command("echo", "hello") | Command("sleep", "2", timeout=0.5, ok_exitcodes=[-signal.SIGKILL])
         with pytest.raises(TimeoutError):
             pipeline.execute()
 
     def test_binary_mode_timeout(self):
         """Test timeout in binary mode."""
         script = "import sys, time; sys.stdout.buffer.write(b'hello'); time.sleep(2)"
-        process = Process("python3", "-c", script, text=False, timeout=0.5, ok_exitcodes=[-signal.SIGKILL])
+        command = Command("python3", "-c", script, text=False, timeout=0.5, ok_exitcodes=[-signal.SIGKILL], wait=False)
+        process = command.execute()
         with pytest.raises(TimeoutError):
-            process.execute()
+            process.wait()
         # In current implementation, output is empty on timeout
         assert process.stdout == ""
 
     def test_custom_exit_codes_timeout(self):
         """Test that timeout takes precedence over custom exit codes."""
-        process = Process("sleep", "2", ok_exitcodes=[-signal.SIGKILL], timeout=0.5)
+        command = Command("sleep", "2", ok_exitcodes=[-signal.SIGKILL], timeout=0.5)
         with pytest.raises(TimeoutError):  # Should raise TimeoutError, not ProcessError
-            process.execute()
+            command.execute()
 
     def test_very_short_timeout(self):
         """Test extremely short timeout causes TimeoutError."""
-        process = Process("sleep", "0.01", timeout=0.001, ok_exitcodes=[-signal.SIGKILL])
+        command = Command("sleep", "0.01", timeout=0.001, ok_exitcodes=[-signal.SIGKILL])
         with pytest.raises(TimeoutError):
-            process.execute()
+            command.execute()
 
     def test_timeout_race_condition(self):
-        """Test timeout with very fast process."""
+        """Test timeout with very fast command."""
         start = time.time()
-        process = Process("echo", "test", timeout=0.01)
-        result = process.execute()
+        command = Command("echo", "test", timeout=0.01)
+        process = command.execute()
         elapsed = time.time() - start
-        assert result.returncode == 0
+        assert process.returncode == 0
         assert elapsed < 0.1  # Should complete quickly
 
 
 def test_binary_mode():
     """Test binary mode execution."""
-    process = Process("echo", "hello", text=False)
-    result = process.execute()
+    command = Command("echo", "hello", text=False)
+    process = command.execute()
 
-    assert result.returncode == 0
+    assert process.returncode == 0
     # In binary mode, check that hello appears in output
-    output = result.stdout
+    output = process.stdout
     # In binary mode, stdout may be bytes or str depending on implementation
     if type(output) is bytes:
         assert b"hello" in output
@@ -253,15 +226,15 @@ def test_binary_mode():
 
     def test_output_truncation(self):
         """Test output size limit and truncation."""
-        # Create a process that generates large output
-        large_process = Process("python3", "-c", "print('x' * 10000)", max_output_size=1000)
-        result = large_process.execute()
+        # Create a command that generates large output
+        large_process = Command("python3", "-c", "print('x' * 10000)", max_output_size=1000)
+        process = large_process.execute()
 
         # Output should be truncated
-        assert len(result.stdout()) <= 1100  # 1000 + truncation message
-        assert "[OUTPUT TRUNCATED]" in result.stdout()
+        assert len(process.stdout()) <= 1100  # 1000 + truncation message
+        assert "[OUTPUT TRUNCATED]" in process.stdout()
 
         # Small output should not be truncated
-        small_process = Process("echo", "hello", max_output_size=1000)
+        small_process = Command("echo", "hello", max_output_size=1000)
         small_result = small_process.execute()
         assert small_result.stdout() == "hello\n"

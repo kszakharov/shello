@@ -6,8 +6,7 @@ Demo script showing shello library capabilities.
 import logging
 import os
 
-from shello import STDOUT, Pipeline, Process, TimeoutError, shell
-from shello.exceptions import ProcessError, UnexpectedExitCodeError
+from shello import Command, Pipeline, Shell, STDOUT
 
 debug = os.environ.get("DEBUG")
 logging.basicConfig(
@@ -16,20 +15,17 @@ logging.basicConfig(
 )
 
 
-def run_example(process: Process | Pipeline) -> None:
-    """Run a shello Process and print its details and results."""
+def run_example(command: Command | Pipeline) -> None:
+    """Run a shello Command or Pipeline and print its details and results."""
 
-    if isinstance(process, Process):
-        if process.env:
-            env = "\n\t".join(f"{k}={v}" for k, v in process.env.items())
+    if isinstance(command, Command):
+        if command.env:
+            env = "\n\t".join(f"{k}={v}" for k, v in command.env.items())
             print(f"   Environment:\n\t{env}")
 
-    print(f"   Command: {process}")
+    print(f"   Command: {command}")
 
-    try:
-        process.execute()
-    except (ProcessError, TimeoutError, UnexpectedExitCodeError):
-        pass
+    process = command.execute()
 
     std_output = process.stdout.strip()
     if "\n" in std_output:
@@ -49,6 +45,8 @@ def run_example(process: Process | Pipeline) -> None:
 
 
 def main():
+    shell = Shell(text=True, check=False)
+
     print("=== Shello Library Demo ===\n")
 
     # Basic command execution

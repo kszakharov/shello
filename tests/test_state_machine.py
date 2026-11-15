@@ -6,41 +6,32 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pytest
 
-from shello import Process
-from shello.exceptions import InvalidOperation
+from shello import Command
+from shello.exceptions import InvalidOperation, ProcessError
 from shello.process import ProcessState
 
 
 class TestStateMachineLeaks:
     """Test state machine for resource leaks and thread safety."""
 
-    def test_state_initialization(self):
-        """Test process starts in PENDING state."""
-        process = Process("echo", "test")
-        assert process.state == ProcessState.PENDING
-        assert process._process is None
-
     def test_single_state_transition_sequence(self):
         """Test normal state transition sequence."""
-        process = Process("echo", "test")
-
-        # Should be PENDING initially
-        assert process.state == ProcessState.PENDING
+        command = Command("echo", "test")
 
         # After execution, should go to TERMINATED
-        process.execute()
+        process = command.execute()
         assert process.state == ProcessState.TERMINATED
 
     def test_failed_state_transition(self):
         """Test TERMINATED state for non-zero exit codes."""
-        process = Process("false", check=False)  # Command that exits with 1
-        process.execute()
+        command = Command("false", check=False)  # Command that exits with 1
+        process = command.execute()
         assert process.state == ProcessState.TERMINATED
 
     def test_state_transition_prevents_reuse(self):
         """Test that terminated processes cannot be reused."""
-        process = Process("echo", "test")
-        process.execute()
+        command = Command("echo", "test")
+        process = command.execute()
 
         assert process.state == ProcessState.TERMINATED
 
@@ -50,35 +41,26 @@ class TestStateMachineLeaks:
 
     def test_kill_state_transition(self):
         """Test TERMINATED state transition."""
-        process = Process("sleep", "10")
+        command = Command("sleep", "10", wait=False)
+        process = command.execute()
 
-        # Start in background thread
-        def execute_process():
-            try:
-                process.execute()
-            except Exception:
-                pass  # Ignore exceptions from kill
-
-        thread = threading.Thread(target=execute_process)
-        thread.start()
-
-        # Give time for process to start
+        # Give time for command to start
         time.sleep(0.1)
 
         # Kill the process
         process.kill()
 
-        # Give time for process to kill and finish
+        # Give time for command to kill and finish
         time.sleep(0.1)
 
         # Should be in TERMINATED state
         assert process.state == ProcessState.TERMINATED
 
-        thread.join(timeout=1.0)
-
     def test_state_property_thread_safety(self):
         """Test that state property is thread-safe."""
-        process = Process("echo", "test")
+        command = Command("sleep", "0.1", wait=False)
+        process = command.execute()
+
         states = []
 
         def collect_states():
@@ -90,8 +72,8 @@ class TestStateMachineLeaks:
         for thread in threads:
             thread.start()
 
-        # Execute process while threads are running
-        process.execute()
+        # Let the process finish while the reader threads are polling its state
+        process.wait()
 
         for thread in threads:
             thread.join()
@@ -101,19 +83,23 @@ class TestStateMachineLeaks:
 
     def test_concurrent_execution_protection(self):
         """Test that concurrent execution attempts are properly protected."""
-        process = Process("echo", "test")
+        command = Command("echo", "test")
+
         results = []
         errors = []
 
+        process = command.execute()
+        results.append(process)
+
         def try_execute():
             try:
-                result = process.execute()
-                results.append(result)
+                process.execute()
+                results.append(process)
             except Exception as e:
                 errors.append(e)
 
         # Try to execute from multiple threads
-        threads = [threading.Thread(target=try_execute) for _ in range(10)]
+        threads = [threading.Thread(target=try_execute) for _ in range(9)]
 
         for thread in threads:
             thread.start()
@@ -128,11 +114,11 @@ class TestStateMachineLeaks:
 
     def test_large_concurrent_workload(self):
         """Test state machine under high concurrent load."""
-        processes = [Process("echo", f"test{i}") for i in range(20)]
+        processes = [Command("echo", f"test{i}") for i in range(20)]
 
-        def execute_process(process):
+        def execute_process(command):
             try:
-                return process.execute().state
+                return command.execute().state
             except Exception as e:
                 return e
 
@@ -147,50 +133,42 @@ class TestStateMachineLeaks:
         assert all(r == ProcessState.TERMINATED for r in successful_results)
 
     def test_lock_timeout_protection(self):
-        """Test that locks don't cause deadlocks."""
-        process = Process("sleep", "0.1")
+        """Test that a held lock delays completion but doesn't cause a deadlock."""
+        process = Command("sleep", "0.1").execute()  # starts immediately
+
+        lock_held = threading.Event()
 
         def slow_operation():
             with process._lock:
+                lock_held.set()
                 time.sleep(0.2)
 
-        def quick_execute():
-            return process.execute()
-
-        # Start slow operation
         slow_thread = threading.Thread(target=slow_operation)
         slow_thread.start()
+        assert lock_held.wait(timeout=1.0)  # lock is definitely held now
 
-        # Give it time to acquire lock
-        time.sleep(0.01)
-
-        # Try to execute - should not deadlock
+        # The process exits after ~0.1s, but the TERMINATED state change
+        # needs the lock, so wait() should return once it is released (~0.2s).
         start_time = time.time()
-        process.execute()
+        process.wait()
         elapsed = time.time() - start_time
 
-        # Should complete in reasonable time (not hang due to deadlock)
-        assert elapsed < 1.0
+        assert process.state is ProcessState.TERMINATED
+        assert elapsed < 1.0  # no deadlock
 
         slow_thread.join()
 
     def test_exception_state_consistency(self):
         """Test that state remains consistent after exceptions."""
         # Test with command that doesn't exist
-        process = Process("nonexistent_command_12345")
-
-        try:
-            process.execute()
-        except Exception:
-            pass  # Expected to fail
-
-        # State should be consistent (not corrupted)
-        assert process.state is ProcessState.SPAWNING
+        command = Command("nonexistent_command_12345", wait=False)
+        with pytest.raises(ProcessError, match="Command not found: nonexistent_command_12345"):
+            command.execute()
 
     def test_state_access_after_cleanup(self):
-        """Test state access behavior after process completion."""
-        process = Process("echo", "test")
-        process.execute()
+        """Test state access behavior after command completion."""
+        command = Command("echo", "test")
+        process = command.execute()
 
         # State should still be accessible after completion
         assert process.state == ProcessState.TERMINATED

@@ -6,21 +6,19 @@ import logging
 import subprocess
 import threading
 import time
-from collections.abc import Container
 from enum import Enum
 from io import BufferedIOBase, TextIOBase
 from pathlib import Path
 from threading import Thread
-from typing import IO, TYPE_CHECKING, Any, AnyStr, BinaryIO, TextIO, cast
+from typing import IO, TYPE_CHECKING, Any, BinaryIO, TextIO, cast
 
 if TYPE_CHECKING:
     from typing import Self
+    from .command import Command
 
 from .decorators import run_once, with_callback
 from .exceptions import InvalidArgument, InvalidOperation, ProcessError, TimeoutError, UnexpectedExitCodeError
 from .helpers import check_fd
-from .pipeline import Pipeline
-from .types import FileDescriptorLike
 
 logger = logging.getLogger(__name__)
 
@@ -49,62 +47,14 @@ class Process:
 
     def __init__(
         self,
-        program: str,
-        *args: str,
-        stdin: AnyStr | FileDescriptorLike | Path | None = None,
-        stdout: FileDescriptorLike | Path | None = None,
-        stderr: FileDescriptorLike | Path | None = None,
-        cwd: str | Path | None = None,
-        env: dict[str, str] | None = None,
-        check: bool = True,
-        ok_exitcodes: Container[int] | int = 0,
-        text: bool = False,
-        timeout: float | None = None,
-        capture_stdout: bool = True,
-        capture_stderr: bool = True,
-        print_stdout: bool = False,
-        print_stderr: bool = False,
-        wait: bool = True,
-        **kwargs: Any,
+        command: Command,
     ) -> None:
         """Initialize a Process.
 
         Args:
-            program: The program to execute
-            *args: Command line arguments for program
-            stdin: Input source (string, file-like object)
-            stdout: Output destination (None, file, path, STDOUT, STDERR)
-            stderr: Error output destination (None, file, path, STDOUT, STDERR)
-            cwd: Working directory
-            env: Environment variables
-            check: Whether to raise exception on non-zero exit
-            ok_exitcodes: Acceptable exit codes (default: 0, use ANY_EXITCODE for any) - can be int or container
-            text: Whether to treat I/O as text
-            timeout: Timeout in seconds for process execution
-            capture_stdout: Whether to capture stdout for later retrieval (default: True)
-            capture_stderr: Whether to capture stderr for later retrieval (default: True)
-            print_stdout: Whether to print stdout to console during execution (default: False)
-            print_stderr: Whether to print stderr to console during execution (default: False)
-            wait: Whether to wait for process to complete before returning
-            **kwargs: Additional arguments passed to subprocess
+            command: The command to execute
         """
-        self.program = program
-        self.args = list(args)
-        self._stdin_source = stdin
-        self._stdout_destination = stdout
-        self._stderr_destination = stderr
-        self.cwd = cwd
-        self.env = env
-        self.check = check
-        self.ok_exitcodes = (ok_exitcodes,) if isinstance(ok_exitcodes, int) else ok_exitcodes
-        self.text = text
-        self.timeout = timeout
-        self.capture_stdout = capture_stdout
-        self.capture_stderr = capture_stderr
-        self.print_stdout = print_stdout
-        self.print_stderr = print_stderr
-        self._wait = wait
-        self.kwargs = kwargs
+        self.command = command
 
         # Runtime state
         self._process: subprocess.Popen | None = None
@@ -124,25 +74,9 @@ class Process:
         # Resource management
         self._opened_handles: list[IO] = []
 
-    def __or__(self, other: Process) -> Pipeline:
-        """Support shell-style pipeline operator: cmd1 | cmd2.
+        self.execute()
 
-        Args:
-            other: Process to pipe stdout into
-
-        Returns:
-            Pipeline connecting this process to the other
-
-        Notes:
-            If `other` is not a Process instance, returns NotImplemented
-            to allow Python to handle the operation with the reflected method.
-        """
-        if not isinstance(other, Process):
-            return NotImplemented
-
-        return Pipeline(self, other)
-
-    def execute(self) -> Process:
+    def execute(self) -> Self:
         """Execute the process.
 
         Starts the subprocess and begins background monitoring threads.
@@ -157,51 +91,48 @@ class Process:
             TimeoutError: If process times out during execution
         """
         if self.state is not ProcessState.PENDING:
-            logger.error("%s: execute() called in invalid state (%s)", self.program, self.state)
+            logger.error("%s: execute() called in invalid state (%s)", self.command.program, self.state)
             raise InvalidOperation("Process already executed")
 
         with self._lock:
-            logger.debug("%s: starting execution", self.program)
+            logger.debug("%s: starting execution", self.command.program)
             self.state = ProcessState.SPAWNING
 
         try:
             self._process = subprocess.Popen(
-                [self.program] + self.args,
+                [self.command.program] + self.command.args,
                 stdin=self._get_stdin_handle(),
                 stdout=self._get_stdout_handle(),
                 stderr=self._get_stderr_handle(),
-                cwd=self.cwd,
-                env=self.env,
-                text=self.text,
-                **self.kwargs,
+                cwd=self.command.cwd,
+                env=self.command.env,
+                text=self.command.text,
+                **self.command.kwargs,
             )
             self.start_time = time.time()
             self.state = ProcessState.RUNNING
-            logger.debug("%s: process started. PID: %s", self.program, self.pid)
+            logger.debug("%s: process started. PID: %s", self.command.program, self.pid)
 
         except FileNotFoundError as e:
             raise ProcessError(
-                command=[self.program] + self.args,
+                command=[self.command.program] + self.command.args,
                 exit_code=127,
-                message=f"Command not found: {self.program}",
+                message=f"Command not found: {self.command.program}",
             ) from e
         except subprocess.SubprocessError as e:
             raise ProcessError(
-                command=[self.program] + self.args,
+                command=[self.command.program] + self.command.args,
                 exit_code=-1,
                 message=f"Subprocess error: {e}",
             ) from e
         except InvalidArgument as e:
-            raise ProcessError(command=[self.program] + self.args, exit_code=-1, message=str(e)) from e
+            raise ProcessError(command=[self.command.program] + self.command.args, exit_code=-1, message=str(e)) from e
         except Exception:
             raise
         finally:
             self._cleanup_resources()
 
         self._background_monitor()
-
-        if self._wait:
-            self.wait()
 
         self._check_exception()
 
@@ -215,30 +146,32 @@ class Process:
         Handles string/bytes stdin input and closes the stream when done.
         """
         if self._process is None:
-            logger.warning("%s: cannot write stdin – process is not started", self.program)
+            logger.warning("%s: cannot write stdin – process is not started", self.command.program)
             return
 
         if self._process.stdin is None:
-            logger.debug("%s: stdin is not writable (stdin=None)", self.program)
+            logger.debug("%s: stdin is not writable (stdin=None)", self.command.program)
             return
 
         if not isinstance(self.stdin, (str, bytes)):
-            logger.debug("%s: no stdin data to write", self.program)
+            logger.debug("%s: no stdin data to write", self.command.program)
             return
 
         try:
-            logger.debug("%s: writing stdin", self.program)
+            logger.debug("%s: writing stdin", self.command.program)
 
             self._process.stdin.write(self.stdin)
             self._process.stdin.flush()
 
         except BrokenPipeError:
             # Child exited early or closed stdin
-            logger.debug("%s: broken pipe while writing stdin", self.program)
+            logger.debug("%s: broken pipe while writing stdin", self.command.program)
 
         except Exception:
-            logger.exception("%s: error while writing stdin", self.program)
-            self._exception = self._exception or Exception(f"{self.program}: failed to write stdin")
+            logger.exception("%s: error while writing stdin", self.command.program)
+            self._exception = self._exception or Exception(
+                f"{self.command.program}: failed to write stdin"
+            )
 
         finally:
             try:
@@ -255,27 +188,36 @@ class Process:
         This method runs in a separate thread and is decorated with @run_once.
         """
         if self._process is None:
-            logger.warning("%s: cannot read stdout – process is not started", self.program)
+            logger.warning(
+                "%s: cannot read stdout – process is not started", self.command.program
+            )
             return
         if self._process.stdout is None:
-            logger.debug("%s: stdout is not captured (stdout=None)", self.program)
+            logger.debug(
+                "%s: stdout is not captured (stdout=None)", self.command.program
+            )
             return
 
-        logger.debug("%s: self.capture_stdout: %s, self.print_stdout: %s", self.program, self.capture_stdout, self.print_stdout)
+        logger.debug(
+            "%s: self.capture_stdout: %s, self.print_stdout: %s",
+            self.command.program,
+            self.command.capture_stdout,
+            self.command.print_stdout,
+        )
 
-        if self.capture_stdout and self.print_stdout:
+        if self.command.capture_stdout and self.command.print_stdout:
             stdout_chunks = []
             for line in self._process.stdout:
                 stdout_chunks.append(line)
-                print(f"{self.program} [stdout]: {line}", end="")
+                print(f"{self.command.program} [stdout]: {line}", end="")
             self._stdout_data = "".join(stdout_chunks)
 
-        elif self.capture_stdout:
+        elif self.command.capture_stdout:
             self._stdout_data = self._process.stdout.read()
 
-        elif self.print_stdout:
+        elif self.command.print_stdout:
             for line in self._process.stdout:
-                print(f"{self.program} [stdout]: {line}", end="")
+                print(f"{self.command.program} [stdout]: {line}", end="")
 
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
@@ -286,25 +228,25 @@ class Process:
         This method runs in a separate thread and is decorated with @run_once.
         """
         if self._process is None:
-            logger.warning("%s: cannot read stderr – process is not started", self.program)
+            logger.warning("%s: cannot read stderr – process is not started", self.command.program)
             return
         if self._process.stderr is None:
-            logger.debug("%s: stderr is not captured (stderr=None)", self.program)
+            logger.debug("%s: stderr is not captured (stderr=None)", self.command.program)
             return
 
-        if self.capture_stderr and self.print_stderr:
+        if self.command.capture_stderr and self.command.print_stderr:
             stderr_chunks = []
             for line in self._process.stderr:
                 stderr_chunks.append(line)
-                print(f"{self.program} [stderr]: {line}", end="")
+                print(f"{self.command.program} [stderr]: {line}", end="")
             self._stderr_data = "".join(stderr_chunks)
 
-        elif self.capture_stderr:
+        elif self.command.capture_stderr:
             self._stderr_data = self._process.stderr.read()
 
-        elif self.print_stderr:
+        elif self.command.print_stderr:
             for line in self._process.stderr:
-                print(f"{self.program} [stderr]: {line}", end="")
+                print(f"{self.command.program} [stderr]: {line}", end="")
 
     @run_once
     @with_callback(on_done=lambda self: self._task_done())
@@ -314,35 +256,35 @@ class Process:
         Waits for the process to complete, handling timeouts and cleanup.
         """
         if self._process is None:
-            logger.warning("%s: cannot wait – process is not started", self.program)
+            logger.warning("%s: cannot wait – process is not started", self.command.program)
             return
 
         if not self.start_time:
             raise InvalidOperation("Process started without start_time")
 
-        if self.timeout is not None:
-            timeout = max(0, self.timeout - (time.time() - self.start_time))
+        if self.command.timeout is not None:
+            timeout = max(0, self.command.timeout - (time.time() - self.start_time))
         else:
             timeout = None
-            logger.debug("%s: no timeout configured", self.program)
+            logger.debug("%s: no timeout configured", self.command.program)
 
         try:
-            logger.debug("%s: waiting for process to exit", self.program)
+            logger.debug("%s: waiting for process to exit", self.command.program)
             self._process.wait(timeout=timeout)
             self.end_time = time.time()
             # Do not access self.returncode here: it raises an error
             # if the process has not been marked as terminated yet.
-            logger.debug("%s: process exited with return code %s", self.program, self._process.returncode)
+            logger.debug("%s: process exited with return code %s", self.command.program, self._process.returncode)
         except subprocess.TimeoutExpired:
-            logger.warning("%s: timeout expired after %.2f seconds", self.program, self.timeout)
+            logger.warning("%s: timeout expired after %.2f seconds", self.command.program, self.command.timeout)
             self._process.kill()
             try:
                 self._process.wait(self.KILL_GRACE_PERIOD)
             except subprocess.TimeoutExpired as e:
-                raise Exception(f"{self.program}: process did not exit after kill") from e
-            self._exception = TimeoutError("%s: process timed out after %.2f seconds", self.program, self.timeout)
+                raise Exception(f"{self.command.program}: process did not exit after kill") from e
+            self._exception = TimeoutError("%s: process timed out after %.2f seconds", self.command.program, self.command.timeout)
         except Exception as e:
-            logger.exception("%s: unexpected error in background monitor", self.program)
+            logger.exception("%s: unexpected error in background monitor", self.command.program)
             self._exception = e
             if self._process.poll() is None:
                 raise
@@ -357,15 +299,15 @@ class Process:
         if self._process is None:
             raise InvalidOperation("Process not started")
         if self.is_done:
-            logger.debug("%s: background monitor skipped (already done)", self.program)
+            logger.debug("%s: background monitor skipped (already done)", self.command.program)
             return
 
-        logger.debug("%s: starting background monitor threads", self.program)
+        logger.debug("%s: starting background monitor threads", self.command.program)
 
-        self._threads.append(Thread(target=self._write_stdin, name=f"[{self.program} stdin]"))
-        self._threads.append(Thread(target=self._read_stdout, name=f"[{self.program} stdout]"))
-        self._threads.append(Thread(target=self._read_stderr, name=f"[{self.program} stderr]"))
-        self._threads.append(Thread(target=self._handle_execution, name=f"[{self.program} wait]"))
+        self._threads.append(Thread(target=self._write_stdin, name=f"[{self.command.program} stdin]"))
+        self._threads.append(Thread(target=self._read_stdout, name=f"[{self.command.program} stdout]"))
+        self._threads.append(Thread(target=self._read_stderr, name=f"[{self.command.program} stderr]"))
+        self._threads.append(Thread(target=self._handle_execution, name=f"[{self.command.program} wait]"))
 
         for thread in self._threads:
             thread.start()
@@ -384,18 +326,18 @@ class Process:
             if thread_id in self._threads_done_set:
                 # Thread should be done once
                 raise RuntimeError(
-                    f"{self.program}: _task_done() called more than once "
+                    f"{self.command.program}: _task_done() called more than once "
                     f"from the same thread "
                     f"(name={thread_name!r}, id={thread_id}). "
                     "This indicates a bug in thread lifecycle handling."
                 )
 
             self._threads_done_set.add(thread)
-            logger.debug("%s: thread done (%d/%d)", self.program, len(self._threads_done_set), self._threads_total)
+            logger.debug("%s: thread done (%d/%d)", self.command.program, len(self._threads_done_set), self._threads_total)
 
             if len(self._threads_done_set) == self._threads_total:
                 # Only when all distinct threads have finished
-                logger.debug("%s: all threads done, setting process as TERMINATED", self.program)
+                logger.debug("%s: all threads done, setting process as TERMINATED", self.command.program)
                 self.state = ProcessState.TERMINATED
                 self._threads_done_event.set()
 
@@ -407,7 +349,7 @@ class Process:
     @state.setter
     def state(self, new_state: ProcessState) -> None:
         """Thread-safe state transition."""
-        logger.debug("%s: process state change: %s -> %s", self.program, self.state, new_state)
+        logger.debug("%s: process state change: %s -> %s", self.command.program, self.state, new_state)
         with self._lock:
             if self.state == new_state:
                 raise InvalidOperation(f"Process already in state {new_state}")
@@ -444,18 +386,18 @@ class Process:
             UnexpectedExitCodeError: If exit code not in ok_exitcodes (when check=True)
         """
         if self._process is None:
-            logger.error("%s: wait() called but process not started", self.program)
+            logger.error("%s: wait() called but process not started", self.command.program)
             raise InvalidOperation("Process not started")
 
         if self._threads_done_event.is_set():
-            logger.debug("%s: wait() skipped – process already terminated", self.program)
+            logger.debug("%s: wait() skipped – process already terminated", self.command.program)
             return self
 
-        logger.debug("%s: waiting for all threads to finish", self.program)
+        logger.debug("%s: waiting for all threads to finish", self.command.program)
         self._threads_done_event.wait()
-        logger.debug("%s: background monitoring completed (state=%s)", self.program, self.state)
+        logger.debug("%s: background monitoring completed (state=%s)", self.command.program, self.state)
 
-        if self.check:
+        if self.command.check:
             self.check_returncode()
             self._check_exception()
         return self
@@ -466,15 +408,15 @@ class Process:
         Raises:
             UnexpectedExitCodeError: If the return code is not in ok_exitcodes.
         """
-        if self.returncode not in self.ok_exitcodes:
+        if self.returncode not in self.command.ok_exitcodes:
             logger.warning(
                 "%s: program exited unexpectedly with code %s (expected %s).",
-                self.program,
+                self.command.program,
                 self.returncode,
-                self.ok_exitcodes,
+                self.command.ok_exitcodes,
             )
             raise UnexpectedExitCodeError(
-                f"{self.program}: program exited with code {self.returncode}, expected {self.ok_exitcodes}"
+                f"{self.command.program}: program exited with code {self.returncode}, expected {self.command.ok_exitcodes}"
             )
 
     def _check_exception(self) -> None:
@@ -549,7 +491,7 @@ class Process:
     @property
     def stdin(self) -> Any:
         """Get stdin source."""
-        return self._stdin_source
+        return self.command._stdin_source
 
     @property
     def execution_time(self) -> float | None:
@@ -561,7 +503,7 @@ class Process:
     def __str__(self) -> str:
         """String representation of the command."""
         # Build base command
-        cmd_parts = [self.program] + self.args
+        cmd_parts = [self.command.program] + self.command.args
         cmd_str = " ".join(cmd_parts)
 
         # Add I/O redirections
@@ -572,17 +514,17 @@ class Process:
             redirects.append(f"< {self.stdin}")
 
         # stdout redirection
-        if isinstance(self._stdout_destination, (str, Path)):
-            redirects.append(f"> {self._stdout_destination}")
-        elif self._stdout_destination is DEVNULL:
+        if isinstance(self.command._stdout_destination, (str, Path)):
+            redirects.append(f"> {self.command._stdout_destination}")
+        elif self.command._stdout_destination is DEVNULL:
             redirects.append("> /dev/null")
 
         # stderr redirection
-        if self._stderr_destination is STDOUT:
+        if self.command._stderr_destination is STDOUT:
             redirects.append("2>&1")
-        elif isinstance(self._stderr_destination, (str, Path)):
-            redirects.append(f"2> {self._stderr_destination}")
-        elif self._stderr_destination is DEVNULL:
+        elif isinstance(self.command._stderr_destination, (str, Path)):
+            redirects.append(f"2> {self.command._stderr_destination}")
+        elif self.command._stderr_destination is DEVNULL:
             redirects.append("2> /dev/null")
 
         # Combine command with redirections
@@ -590,14 +532,14 @@ class Process:
             cmd_str += " " + " ".join(redirects)
 
         # Add timeout information
-        if self.timeout is not None:
-            cmd_str += f" [timeout: {self.timeout}s]"
+        if self.command.timeout is not None:
+            cmd_str += f" [timeout: {self.command.timeout}s]"
 
         return cmd_str
 
     def __repr__(self) -> str:
         """Detailed representation."""
-        return f"Process({self.program!r}, {', '.join(repr(arg) for arg in self.args)})"
+        return f"{type(self).__name__}(command={self.command!r})"
 
     def _get_stdin_handle(self) -> int | IO | None:
         """Get stdin handle for subprocess."""
@@ -621,34 +563,34 @@ class Process:
 
     def _get_stdout_handle(self) -> int | IO | None:
         """Get stdout handle for subprocess."""
-        if self._stdout_destination in (None, subprocess.PIPE):
+        if self.command._stdout_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
-        elif self._stdout_destination is DEVNULL:
+        elif self.command._stdout_destination is DEVNULL:
             return subprocess.DEVNULL
-        elif isinstance(self._stdout_destination, int):
-            check_fd(self._stdout_destination, "w")
-            return self._stdout_destination
-        elif isinstance(self._stdout_destination, Path):
-            handle = open(self._stdout_destination, "wb")
+        elif isinstance(self.command._stdout_destination, int):
+            check_fd(self.command._stdout_destination, "w")
+            return self.command._stdout_destination
+        elif isinstance(self.command._stdout_destination, Path):
+            handle = open(self.command._stdout_destination, "wb")
             self._opened_handles.append(handle)
             return handle
 
-        raise InvalidArgument(f"Invalid stdout value: {self._stdout_destination!r}")
+        raise InvalidArgument(f"Invalid stdout value: {self.command._stdout_destination!r}")
 
     def _get_stderr_handle(self) -> int | IO | None:
         """Get stderr handle for subprocess."""
-        if self._stderr_destination in (None, subprocess.PIPE):
+        if self.command._stderr_destination in (None, subprocess.PIPE):
             return subprocess.PIPE
-        elif self._stderr_destination is subprocess.STDOUT:
+        elif self.command._stderr_destination is subprocess.STDOUT:
             return subprocess.STDOUT
-        elif self._stderr_destination is subprocess.DEVNULL:
+        elif self.command._stderr_destination is subprocess.DEVNULL:
             return subprocess.DEVNULL
-        elif isinstance(self._stderr_destination, int):
-            check_fd(self._stderr_destination, "w")
-            return self._stderr_destination
-        elif isinstance(self._stderr_destination, Path):
-            handle = open(self._stderr_destination, "wb")
+        elif isinstance(self.command._stderr_destination, int):
+            check_fd(self.command._stderr_destination, "w")
+            return self.command._stderr_destination
+        elif isinstance(self.command._stderr_destination, Path):
+            handle = open(self.command._stderr_destination, "wb")
             self._opened_handles.append(handle)
             return handle
 
-        raise InvalidArgument(f"Invalid stderr value: {self._stderr_destination!r}")
+        raise InvalidArgument(f"Invalid stderr value: {self.command._stderr_destination!r}")

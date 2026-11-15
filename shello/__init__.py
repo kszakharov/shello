@@ -2,22 +2,24 @@
 
 from __future__ import annotations
 
+from .command import Command
 from .exceptions import InvalidArgument, ProcessError, ShellError, TimeoutError
 from .pipeline import Pipeline
 from .process import ANY_EXITCODE, DEVNULL, STDOUT, Process
 from .shell import Shell, binary_shell, shell
 
 __all__ = [
+    "ANY_EXITCODE",
     "binary_shell",
+    "Command",
+    "DEVNULL",
+    "InvalidArgument",
+    "Pipeline",
+    "Process",
+    "ProcessError",
     "shell",
     "Shell",
-    "Process",
-    "ANY_EXITCODE",
-    "DEVNULL",
-    "STDOUT",
     "ShellError",
-    "ProcessError",
-    "InvalidArgument",
+    "STDOUT",
     "TimeoutError",
-    "Pipeline",
 ]
