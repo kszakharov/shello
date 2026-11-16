@@ -6,7 +6,7 @@
 [![Version](https://img.shields.io/pypi/v/shello)](https://pypi.org/project/shello)
 [![Python Version](https://img.shields.io/pypi/pyversions/shello.svg)](https://pypi.org/project/shello)
 
-A modern Python library for shell-style process execution with elegant syntax and powerful features.
+A modern Python library for shell-style command execution with elegant syntax and powerful features.
 
 ## Features
 
@@ -69,19 +69,19 @@ from shello import Shell
 # Create shell with default options
 shell = Shell(check=False, cwd="/tmp")
 
-# Create processes
-process1 = shell("echo", "hello")
-process2 = shell.echo("hello")  # Attribute access (underscores -> hyphens)
+# Create commands
+command1 = shell("echo", "hello")
+command2 = shell.echo("hello")  # Attribute access (underscores -> hyphens)
 ```
 
-### Process Class
+### Command Class
 
-Represents a process that can be executed.
+Represents a command that can be executed.
 
 #### Constructor
 
 ```python
-Process(program, *args,
+Command(program, *args,
        stdin=DEVNULL, stdout=None, stderr=None,
        cwd=None, env=None, check=True, ok_exitcodes=0, text=True, **kwargs)
 ```
@@ -101,7 +101,7 @@ Process(program, *args,
 
 #### Methods
 
-- `execute() -> Process`: Execute the process and wait for completion
+- `execute() -> Process`: Execute the command and wait for completion
 - `wait() -> int`: Wait for process completion and return exit code
 - `kill(signal=15) -> None`: Send signal to process
 - `pid -> int | None`: Get process ID
@@ -177,7 +177,7 @@ result = shell.echo("data", stdout="output.txt").execute()
 
 ```python
 # Execute without waiting
-process = shell.long_running_command(wait=False)
+process = shell.long_running_command(wait=False).execute()
 
 # Later...
 process.wait()  # Wait for completion
