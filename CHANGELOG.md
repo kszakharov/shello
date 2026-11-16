@@ -9,6 +9,15 @@ All notable changes to this project will be documented in this file.
 - Support for Python 3.15
 - Project logo and status badges to the README
 
+### Changed
+
+- **BREAKING:** Split `Process` into two classes, `Command` and `Process`
+  - `Command` holds the settings: program, arguments, I/O, environment, timeout, and wait mode
+    - `Command.execute()` returns a new Process each time and can be called multiple times
+  - `Process` represents one execution
+  - `shell` now creates `Command` objects instead of `Process` objects
+  - `Pipeline` now created from `Command | Command` instead of `Process | Process`
+
 ## [0.2.0] - 2026-03-08
 
 ### Added
