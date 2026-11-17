@@ -56,7 +56,7 @@ class Command:
             **kwargs: Additional arguments passed to subprocess
         """
         self.program = program
-        self.args = list(args)
+        self.args = args
         self._stdin_source = stdin
         self._stdout_destination = stdout
         self._stderr_destination = stderr
@@ -110,7 +110,7 @@ class Command:
     def __str__(self) -> str:
         """String representation of the command."""
         # Build base command
-        cmd_parts = [self.program] + self.args
+        cmd_parts = (self.program, *self.args)
         cmd_str = " ".join(cmd_parts)
 
         # Add I/O redirections

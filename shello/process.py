@@ -100,7 +100,7 @@ class Process:
 
         try:
             self._process = subprocess.Popen(
-                [self.command.program] + self.command.args,
+                (self.command.program, *self.command.args),
                 stdin=self._get_stdin_handle(),
                 stdout=self._get_stdout_handle(),
                 stderr=self._get_stderr_handle(),
@@ -115,18 +115,18 @@ class Process:
 
         except FileNotFoundError as e:
             raise ProcessError(
-                command=[self.command.program] + self.command.args,
+                command=(self.command.program, *self.command.args),
                 exit_code=127,
                 message=f"Command not found: {self.command.program}",
             ) from e
         except subprocess.SubprocessError as e:
             raise ProcessError(
-                command=[self.command.program] + self.command.args,
+                command=(self.command.program, *self.command.args),
                 exit_code=-1,
                 message=f"Subprocess error: {e}",
             ) from e
         except InvalidArgument as e:
-            raise ProcessError(command=[self.command.program] + self.command.args, exit_code=-1, message=str(e)) from e
+            raise ProcessError(command=(self.command.program, *self.command.args), exit_code=-1, message=str(e)) from e
         except Exception:
             raise
         finally:

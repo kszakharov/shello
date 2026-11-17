@@ -13,7 +13,7 @@ def test_command_initialization_defaults():
     command = Command(cmd, "hello", "world")
 
     assert command.program == "echo"
-    assert command.args == ["hello", "world"]
+    assert command.args == ("hello", "world")
     assert command.check is True
     assert command.ok_exitcodes == (0,)
     assert command.wait is True

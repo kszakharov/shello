@@ -22,7 +22,7 @@ class ProcessError(ShellError):
 
     def __init__(
         self,
-        command: list[str],
+        command: tuple[str, ...],
         exit_code: int,
         stdout: str | None = None,
         stderr: str | None = None,

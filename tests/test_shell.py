@@ -13,7 +13,7 @@ class TestShell:
 
         assert isinstance(command, Command)
         assert command.program == "echo"
-        assert command.args == ["hello"]
+        assert command.args == ("hello",)
 
     def test_shell_getattr_method(self):
         """Test Shell __getattr__ method."""
@@ -22,7 +22,7 @@ class TestShell:
 
         assert isinstance(command, Command)
         assert command.program == "echo"  # underscores converted to hyphens
-        assert command.args == ["hello"]
+        assert command.args == ("hello",)
 
     def test_shell_getattr_with_underscores(self):
         """Test that underscores in program names are converted to hyphens."""
@@ -31,7 +31,7 @@ class TestShell:
 
         assert isinstance(command, Command)
         assert command.program == "complex-command-name"
-        assert command.args == ["arg"]
+        assert command.args == ("arg",)
 
     def test_shell_with_default_options(self):
         """Test Shell with default options."""
@@ -74,7 +74,7 @@ class TestShell:
 
         assert isinstance(command, Command)
         assert command.program == "echo"
-        assert command.args == []
+        assert command.args == ()
 
     def test_shell_getattr_empty_call(self):
         """Test Shell getattr with no arguments."""
@@ -83,4 +83,4 @@ class TestShell:
 
         assert isinstance(command, Command)
         assert command.program == "echo"
-        assert command.args == []
+        assert command.args == ()
