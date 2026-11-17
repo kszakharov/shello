@@ -35,25 +35,34 @@ class Pipeline:
         for command in commands[1:]:
             self.validate(command, first=False)
 
-        self.commands: list[Command] = list(commands)
+        self.commands = []
+        for command in commands:
+            command.wait = False
+            command.capture_stdout = False if command is not commands[-1] else command.capture_stdout
+            command.check = False if command is not commands[-1] else command.check
+            command._stdout_destination = subprocess.PIPE
+            self.commands.append(command)
+
         self._wait: bool = wait
 
         self.processes: list[Process] = list()
 
-    def __or__(self, other) -> Self:
-        """Support shell-style pipeline operator: Pipeline(...) | Command(...).
+    def __or__(self, other: Command) -> Pipeline:
+        """Append a command to the pipeline using the shell-style | operator.
 
-        Enables chaining command onto existing pipelines using the | operator.
-        Validates that the other operand is a Command instance.
+        Creates a new pipeline containing the current pipeline's commands
+        followed by the specified command. The new pipeline inherits the
+        wait behavior from the appended command.
 
         Args:
             other: Command instance to append to the pipeline.
 
         Returns:
-            The pipeline instance with the new command added.
+            A new Pipeline containing the existing commands and the appended
+            command.
 
         Raises:
-            TypeError: If other is not a Command instance.
+            TypeError: If the other operand is not a Command instance.
         """
 
         from shello.command import Command
@@ -61,8 +70,7 @@ class Pipeline:
         if not isinstance(other, Command):
             return NotImplemented
 
-        self.add(other)
-        return self
+        return Pipeline(*self.commands, other, wait=other.wait)
 
     def __str__(self) -> str:
         """String representation of the pipeline.
@@ -79,22 +87,6 @@ class Pipeline:
             Python representation showing Pipeline constructor call.
         """
         return f"Pipeline({', '.join(repr(command) for command in self.commands)})"
-
-    def add(self, command: Command) -> None:
-        """Add a Command to the pipeline.
-
-        Validates the command can be added (proper I/O configuration)
-        and appends it to the pipeline's command list.
-
-        Args:
-            command: Command instance to add.
-
-        Raises:
-            InvalidOperation: If command has invalid I/O configuration.
-        """
-
-        self.validate(command, first=False)
-        self.commands.append(command)
 
     @staticmethod
     def validate(command: Command, first: bool) -> None:
@@ -175,11 +167,7 @@ class Pipeline:
         prev_stdout = None
 
         for command in self.commands:
-            command.wait = False
-            command.capture_stdout = False if command is not self.commands[-1] else command.capture_stdout
             command._stdin_source = prev_stdout if command is not self.commands[0] else command._stdin_source
-            command.check = False if command is not self.commands[-1] else command.check
-            command._stdout_destination = subprocess.PIPE
 
             process = command.execute()
             self.processes.append(process)
